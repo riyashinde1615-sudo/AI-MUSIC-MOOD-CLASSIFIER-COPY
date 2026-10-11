@@ -1,44 +1,49 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 import "./Upload.css";
 
 const API_URL =
   "https://ai-music-mood-classifier-copy.onrender.com";
 
 function Upload() {
+  const navigate = useNavigate();
+
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleFileChange = (event) => {
-    const selectedFile = event.target.files?.[0];
+    const selected = event.target.files?.[0];
     setError("");
     setFile(null);
 
-    if (!selectedFile) return;
+    if (!selected) return;
+
+    const extension = selected.name
+      .split(".")
+      .pop()
+      .toLowerCase();
 
     const allowed = ["mp3", "wav", "ogg", "m4a", "flac"];
-    const ext = selectedFile.name.split(".").pop().toLowerCase();
 
-    if (!allowed.includes(ext)) {
-      setError("Please upload MP3, WAV, OGG, M4A, or FLAC.");
+    if (!allowed.includes(extension)) {
+      setError("Please select MP3, WAV, OGG, M4A or FLAC.");
       event.target.value = "";
       return;
     }
 
-    if (selectedFile.size > 25 * 1024 * 1024) {
+    if (selected.size > 25 * 1024 * 1024) {
       setError("File size must be less than 25 MB.");
       event.target.value = "";
       return;
     }
 
-    setFile(selectedFile);
+    setFile(selected);
   };
 
-  const analyzeFile = async (endpoint) => {
+  const sendFile = async (endpoint) => {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -48,18 +53,14 @@ function Upload() {
       { timeout: 180000 }
     );
 
-    if (response.data?.success === false) {
-      throw new Error("Analysis failed.");
-    }
-
     return response.data;
   };
 
-  const handleUpload = async (event) => {
+  const handleAnalyze = async (event) => {
     event.preventDefault();
 
     if (!file) {
-      setError("Please select a music file first.");
+      setError("Please choose a music file first.");
       return;
     }
 
@@ -68,81 +69,101 @@ function Upload() {
 
     [
       "moodData",
-      "multiMoodData",
       "moodTransitionData",
       "moodTimelineData",
+      "multiMoodData",
     ].forEach((key) => localStorage.removeItem(key));
 
     try {
-      // 1. Main mood prediction
-      const result = await analyzeFile("/mood");
+      const result = await sendFile("/mood");
 
-      if (!result?.mood) {
-        throw new Error("Mood prediction was not returned.");
+      if (!result || result.success === false || !result.mood) {
+        throw new Error(
+          result?.error || "Mood analysis failed."
+        );
       }
 
       localStorage.setItem("moodData", JSON.stringify(result));
       localStorage.setItem("uploadedSongName", file.name);
-      localStorage.setItem(
-        "uploadedAudioUrl",
-        URL.createObjectURL(file)
-      );
 
-      // 2. Prediction history
+      const audioUrl = URL.createObjectURL(file);
+      localStorage.setItem("uploadedAudioUrl", audioUrl);
+
+      let history = [];
+
       try {
-        const history = JSON.parse(
+        history = JSON.parse(
           localStorage.getItem("predictionHistory") || "[]"
         );
-
-        history.unshift({
-          filename: file.name,
-          mood: result.mood,
-          confidence: result.confidence,
-          date: new Date().toLocaleString(),
-        });
-
-        localStorage.setItem(
-          "predictionHistory",
-          JSON.stringify(history.slice(0, 20))
-        );
-      } catch (e) {
-        console.warn("History could not be saved:", e);
+        if (!Array.isArray(history)) history = [];
+      } catch {
+        history = [];
       }
 
-      // 3. Multi-mood analysis
+      history.unshift({
+        filename: file.name,
+        mood: result.mood,
+        confidence: result.confidence,
+        date: new Date().toLocaleString(),
+      });
+
+      localStorage.setItem(
+        "predictionHistory",
+        JSON.stringify(history.slice(0, 50))
+      );
+
+      // Extra analyses are optional. Their errors won't cancel
+      // the successful main mood prediction.
       try {
-        const multi = await analyzeFile("/multi-mood");
-        localStorage.setItem("multiMoodData", JSON.stringify(multi));
-      } catch (e) {
-        console.warn("Multi-mood analysis failed:", e);
+        const multi = await sendFile("/multi-mood");
+
+        if (multi && multi.success !== false) {
+          localStorage.setItem(
+            "multiMoodData",
+            JSON.stringify(multi)
+          );
+        }
+      } catch (err) {
+        console.warn("Multi-mood analysis unavailable:", err);
       }
 
-      // 4. Mood transition and timeline
       try {
-        const transition = await analyzeFile("/mood-transition");
+        const transition = await sendFile("/mood-transition");
 
-        localStorage.setItem(
-          "moodTransitionData",
-          JSON.stringify(transition)
-        );
-        localStorage.setItem(
-          "moodTimelineData",
-          JSON.stringify(transition)
-        );
-      } catch (e) {
-        console.warn("Mood transition analysis failed:", e);
+        if (
+          transition &&
+          transition.success !== false &&
+          Array.isArray(transition.transitions)
+        ) {
+          localStorage.setItem(
+            "moodTransitionData",
+            JSON.stringify(transition)
+          );
+          localStorage.setItem(
+            "moodTimelineData",
+            JSON.stringify(transition)
+          );
+        }
+      } catch (err) {
+        console.warn("Timeline analysis unavailable:", err);
       }
 
       navigate("/mood-result");
-    } catch (e) {
-      console.error("Upload error:", e);
+    } catch (err) {
+      console.error("Upload analysis error:", err);
 
-      setError(
-        e.response?.data?.error ||
-        e.response?.data?.message ||
-        e.message ||
-        "Unable to analyze music. Please try again."
-      );
+      if (err.response) {
+        setError(
+          err.response.data?.error ||
+            `Server error: ${err.response.status}`
+        );
+      } else if (err.code === "ECONNABORTED") {
+        setError("Analysis timed out. Please try again.");
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError("Network Error. Please check the backend connection.");
+      }
     } finally {
       setLoading(false);
     }
@@ -150,15 +171,23 @@ function Upload() {
 
   return (
     <div className="upload-page">
-      <div className="upload-container">
-        <div className="upload-box">
-          <h2>🎵 Upload Your Music</h2>
+      <main className="upload-container">
+        <h1>🎵 Upload Music</h1>
+        <p className="upload-subtitle">
+          Upload your song and discover its musical mood using AI.
+        </p>
 
-          <p>
-            Upload an audio file to discover its musical mood.
-          </p>
+        <form onSubmit={handleAnalyze}>
+          <section className="upload-box">
+            <div className="upload-headphone" aria-hidden="true">
+              🎧
+            </div>
 
-          <form onSubmit={handleUpload}>
+            <h2>Select Your Song</h2>
+            <p className="upload-formats">
+              Supported formats: MP3, WAV, OGG, M4A, FLAC
+            </p>
+
             <input
               className="file-input"
               type="file"
@@ -169,35 +198,41 @@ function Upload() {
 
             {file && (
               <div className="selected-file">
-                <p>🎧 <strong>{file.name}</strong></p>
-                <p>
-                  Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
-                </p>
+                <span>Selected:</span>
+                <strong>{file.name}</strong>
+                <small>
+                  {(file.size / (1024 * 1024)).toFixed(2)} MB
+                </small>
               </div>
             )}
+          </section>
 
-            {error && (
-              <p className="error-message" role="alert">
-                ⚠️ {error}
-              </p>
-            )}
+          {error && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
+          )}
 
-            {loading && (
-              <p className="loading-message" role="status">
-                🎶 Analyzing your music... Please wait.
-              </p>
-            )}
+          {loading && (
+            <div className="loading-message" role="status">
+              <span className="upload-spinner"></span>
+              Analyzing your song... Please wait.
+            </div>
+          )}
 
-            <button
-              className="upload-button"
-              type="submit"
-              disabled={loading || !file}
-            >
-              {loading ? "Analyzing..." : "✨ Analyze Song"}
-            </button>
-          </form>
+          <button
+            className="upload-button"
+            type="submit"
+            disabled={!file || loading}
+          >
+            {loading ? "Analyzing Song..." : "Analyze Song 🎶"}
+          </button>
+        </form>
+
+        <div className="upload-back">
+          <Link to="/dashboard">Back to Dashboard</Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
