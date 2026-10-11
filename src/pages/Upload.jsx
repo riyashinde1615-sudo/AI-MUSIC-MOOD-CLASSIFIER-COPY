@@ -1,130 +1,243 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import "./Upload.css";
 
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import "./MoodTransition.css";
+const API_URL =
+"https://ai-music-mood-classifier-copy.onrender.com";
 
-function MoodTransition() {
-  const [songName, setSongName] = useState("Uploaded Music");
-  const [transitions, setTransitions] = useState([]);
-  const [loading, setLoading] = useState(true);
+function Upload() {
+const navigate = useNavigate();
 
-  useEffect(() => {
-    try {
-      const savedName = localStorage.getItem("uploadedSongName");
-      const savedData = JSON.parse(
-        localStorage.getItem("moodTransitionData") || "null"
-      );
+const [file, setFile] = useState(null);
+const [error, setError] = useState("");
+const [loading, setLoading] = useState(false);
 
-      if (savedName) {
-        setSongName(savedName);
-      }
+const handleFileChange = (event) => {
+const selected = event.target.files?.[0];
+setError("");
+setFile(null);
 
-      const items = Array.isArray(savedData)
-        ? savedData
-        : Array.isArray(savedData?.transitions)
-        ? savedData.transitions
-        : [];
+if (!selected) return;  
 
-      setTransitions(items);
-    } catch (error) {
-      console.error("Unable to load transition data:", error);
-      setTransitions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+const extension = selected.name  
+  .split(".")  
+  .pop()  
+  .toLowerCase();  
 
-  const formatTime = (seconds) => {
-    const total = Math.max(0, Number(seconds) || 0);
-    const minutes = Math.floor(total / 60);
-    const remaining = Math.floor(total % 60);
+const allowed = ["mp3", "wav", "ogg", "m4a", "flac"];  
 
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remaining
-    ).padStart(2, "0")}`;
-  };
+if (!allowed.includes(extension)) {  
+  setError("Please select MP3, WAV, OGG, M4A or FLAC.");  
+  event.target.value = "";  
+  return;  
+}  
 
-  const getEmoji = (mood) => {
-    const value = String(mood || "").toLowerCase();
+if (selected.size > 25 * 1024 * 1024) {  
+  setError("File size must be less than 25 MB.");  
+  event.target.value = "";  
+  return;  
+}  
 
-    if (value.includes("happy")) return "😊";
-    if (value.includes("sad")) return "😢";
-    if (value.includes("relax") || value.includes("calm")) return "😌";
-    if (value.includes("energetic")) return "⚡";
-    if (value.includes("aggressive")) return "🔥";
+setFile(selected);
 
-    return "🎵";
-  };
+};
 
-  return (
-    <div className="mood-transition-page">
-      <div className="mood-transition-container">
-        <Link to="/mood-result" className="mood-transition-back">
-          ← Back to Mood Result
-        </Link>
+const sendFile = async (endpoint) => {
+const formData = new FormData();
+formData.append("file", file);
 
-        <div className="mood-transition-header">
-          <div className="mood-transition-icon">🔄</div>
-          <h1>Mood Transition</h1>
-          <p>Detect how the emotional mood changes throughout the song.</p>
-        </div>
+const response = await axios.post(  
+  `${API_URL}${endpoint}`,  
+  formData,  
+  { timeout: 180000 }  
+);  
 
-        <div className="transition-song-card">
-          <div className="transition-song-icon">🎵</div>
-          <div>
-            <h3>Your Uploaded Song</h3>
-            <p>
-              Song: <strong>{songName}</strong>
-            </p>
-          </div>
-        </div>
+return response.data;
 
-        {loading ? (
-          <div className="transition-empty-card">
-            <h3>Loading transition data...</h3>
-          </div>
-        ) : transitions.length === 0 ? (
-          <div className="transition-empty-card">
-            <div className="empty-icon">🎵</div>
-            <h3>No Mood Transition Data Available</h3>
-            <p>
-              Upload your song and analyze it again to generate
-              mood transition data.
-            </p>
-            <Link to="/upload" className="timeline-upload-button">
-              Upload Music →
-            </Link>
-          </div>
-        ) : (
-          <div className="transition-list">
-            {transitions.map((item, index) => (
-              <div className="transition-card" key={index}>
-                <div className="transition-time">
-                  ⏱️ {formatTime(item.start)} – {formatTime(item.end)}
-                </div>
+};
 
-                <div className="transition-moods">
-                  <span className="mood-badge">
-                    {getEmoji(item.mood)} {item.mood || "Unknown"}
-                  </span>
-                </div>
+const handleAnalyze = async (event) => {
+event.preventDefault();
 
-                <p className="transition-description">
-                  Mood analysis for this section.
-                </p>
+if (!file) {  
+  setError("Please choose a music file first.");  
+  return;  
+}  
 
-                {item.confidence != null && (
-                  <p className="transition-confidence">
-                    🎯 Confidence: <strong>{item.confidence}%</strong>
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+setLoading(true);  
+setError("");  
+
+[  
+  "moodData",  
+  "moodTransitionData",  
+  "moodTimelineData",  
+  "multiMoodData",  
+].forEach((key) => localStorage.removeItem(key));  
+
+try {  
+  const result = await sendFile("/mood");  
+
+  if (!result || result.success === false || !result.mood) {  
+    throw new Error(  
+      result?.error || "Mood analysis failed."  
+    );  
+  }  
+
+  localStorage.setItem("moodData", JSON.stringify(result));  
+  localStorage.setItem("uploadedSongName", file.name);  
+
+  const audioUrl = URL.createObjectURL(file);  
+  localStorage.setItem("uploadedAudioUrl", audioUrl);  
+
+  let history = [];  
+
+  try {  
+    history = JSON.parse(  
+      localStorage.getItem("predictionHistory") || "[]"  
+    );  
+    if (!Array.isArray(history)) history = [];  
+  } catch {  
+    history = [];  
+  }  
+
+  history.unshift({  
+    filename: file.name,  
+    mood: result.mood,  
+    confidence: result.confidence,  
+    date: new Date().toLocaleString(),  
+  });  
+
+  localStorage.setItem(  
+    "predictionHistory",  
+    JSON.stringify(history.slice(0, 50))  
+  );  
+
+  // Extra analyses are optional. Their errors won't cancel  
+  // the successful main mood prediction.  
+  try {  
+    const multi = await sendFile("/multi-mood");  
+
+    if (multi && multi.success !== false) {  
+      localStorage.setItem(  
+        "multiMoodData",  
+        JSON.stringify(multi)  
+      );  
+    }  
+  } catch (err) {  
+    console.warn("Multi-mood analysis unavailable:", err);  
+  }  
+
+  try {  
+    const transition = await sendFile("/mood-transition");  
+
+    if (  
+      transition &&  
+      transition.success !== false &&  
+      Array.isArray(transition.transitions)  
+    ) {  
+      localStorage.setItem(  
+        "moodTransitionData",  
+        JSON.stringify(transition)  
+      );  
+      localStorage.setItem(  
+        "moodTimelineData",  
+        JSON.stringify(transition)  
+      );  
+    }  
+  } catch (err) {  
+    console.warn("Timeline analysis unavailable:", err);  
+  }  
+
+  navigate("/mood-result");  
+} catch (err) {  
+  console.error("Upload analysis error:", err);  
+
+  if (err.response) {  
+    setError(  
+      err.response.data?.error ||  
+        `Server error: ${err.response.status}`  
+    );  
+  } else if (err.code === "ECONNABORTED") {  
+    setError("Analysis timed out. Please try again.");  
+  } else if (err.message) {  
+    setError(err.message);  
+  } else {  
+    setError("Network Error. Please check the backend connection.");  
+  }  
+} finally {  
+  setLoading(false);  
 }
 
-export default MoodTransition;
+};
+
+return (
+<div className="upload-page">
+<main className="upload-container">
+<h1>🎵 Upload Music</h1>
+<p className="upload-subtitle">
+Upload your song and discover its musical mood using AI.
+</p>
+
+<form onSubmit={handleAnalyze}>  
+      <section className="upload-box">  
+        <div className="upload-headphone" aria-hidden="true">  
+          🎧  
+        </div>  
+
+        <h2>Select Your Song</h2>  
+        <p className="upload-formats">  
+          Supported formats: MP3, WAV, OGG, M4A, FLAC  
+        </p>  
+
+        <input  
+          className="file-input"  
+          type="file"  
+          accept=".mp3,.wav,.ogg,.m4a,.flac,audio/*"  
+          onChange={handleFileChange}  
+          disabled={loading}  
+        />  
+
+        {file && (  
+          <div className="selected-file">  
+            <span>Selected:</span>  
+            <strong>{file.name}</strong>  
+            <small>  
+              {(file.size / (1024 * 1024)).toFixed(2)} MB  
+            </small>  
+          </div>  
+        )}  
+      </section>  
+
+      {error && (  
+        <div className="error-message" role="alert">  
+          {error}  
+        </div>  
+      )}  
+
+      {loading && (  
+        <div className="loading-message" role="status">  
+          <span className="upload-spinner"></span>  
+          Analyzing your song... Please wait.  
+        </div>  
+      )}  
+
+      <button  
+        className="upload-button"  
+        type="submit"  
+        disabled={!file || loading}  
+      >  
+        {loading ? "Analyzing Song..." : "Analyze Song 🎶"}  
+      </button>  
+    </form>  
+
+    <div className="upload-back">  
+      <Link to="/dashboard">Back to Dashboard</Link>  
+    </div>  
+  </main>  
+</div>
+
+);
+}
+
+export default Upload;
