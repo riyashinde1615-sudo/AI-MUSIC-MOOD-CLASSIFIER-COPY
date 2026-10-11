@@ -5,23 +5,24 @@ import "./History.css";
 const API_URL =
   "https://ai-music-mood-classifier-copy.onrender.com";
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return "Time unavailable";
+const formatDate = (dateString) => {
+  if (!dateString) return "Date unavailable";
 
-  // Backend timestamp should contain Z or a timezone offset.
-  const date = new Date(dateString);
+  // Handles timestamps such as "2026-10-11 11:22:43"
+  const normalized = dateString.includes("T")
+    ? dateString
+    : dateString.replace(" ", "T");
+
+  const date = new Date(normalized);
 
   if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
+    return dateString.split(" ")[0];
   }
 
-  return date.toLocaleString(undefined, {
+  return date.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
+    day: "2-digit"
   });
 };
 
@@ -44,17 +45,18 @@ function History() {
 
         const data = await response.json();
 
-        // Supports either an array or { history: [...] }
         const records = Array.isArray(data)
           ? data
           : Array.isArray(data.history)
           ? data.history
+          : Array.isArray(data.predictions)
+          ? data.predictions
           : [];
 
         setHistory(records);
       } catch (err) {
         setError(
-          "History load होत नाही. Backend सुरू आहे का ते तपासा."
+          "History load होत नाही. कृपया पुन्हा प्रयत्न करा."
         );
       } finally {
         setLoading(false);
@@ -68,12 +70,15 @@ function History() {
     <div className="history-page">
       <div className="history-container">
         <h1>Prediction History</h1>
+
         <p className="history-subtitle">
           Your previous music mood predictions
         </p>
 
         {loading && (
-          <p className="history-message">Loading history...</p>
+          <p className="history-message">
+            Loading history...
+          </p>
         )}
 
         {!loading && error && (
@@ -90,6 +95,7 @@ function History() {
           <div className="history-list">
             {history.map((item, index) => {
               const songName =
+                item.song ||
                 item.song_name ||
                 item.filename ||
                 item.file_name ||
@@ -100,10 +106,10 @@ function History() {
                 item.predicted_mood ||
                 "Unknown";
 
-              const timestamp =
+              const dateValue =
+                item.date ||
                 item.created_at ||
                 item.timestamp ||
-                item.date ||
                 item.datetime;
 
               return (
@@ -111,19 +117,27 @@ function History() {
                   className="history-card"
                   key={item.id ?? `${songName}-${index}`}
                 >
-                  <div className="history-card-top">
-                    <div>
-                      <h3>{songName}</h3>
-                      <p className="history-mood">
-                        Mood: <strong>{mood}</strong>
-                      </p>
-                    </div>
-                  </div>
+                  <h3>{songName}</h3>
 
-                  <p className="history-time">
-                    <span>📅</span>{" "}
-                    {formatDateTime(timestamp)}
+                  <p className="history-mood">
+                    Mood: <strong>{mood}</strong>
                   </p>
+
+                  <p className="history-date">
+                    📅 Date: {formatDate(dateValue)}
+                  </p>
+
+                  {item.confidence !== undefined && (
+                    <p className="history-confidence">
+                      Confidence: {item.confidence}%
+                    </p>
+                  )}
+
+                  {item.intensity && (
+                    <p className="history-intensity">
+                      Intensity: {item.intensity}
+                    </p>
+                  )}
                 </div>
               );
             })}
