@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import "./History.css";
 
@@ -11,13 +12,12 @@ function History() {
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
 
-  // Read recent records saved in this browser.
   const getLocalHistory = () => {
     try {
-      const saved = JSON.parse(
+      const records = JSON.parse(
         localStorage.getItem("predictionHistory") || "[]"
       );
-      return Array.isArray(saved) ? saved : [];
+      return Array.isArray(records) ? records : [];
     } catch {
       return [];
     }
@@ -31,6 +31,12 @@ function History() {
     item.audio_file ||
     "Unknown Song";
 
+  const getMood = (item) =>
+    item.mood ||
+    item.predicted_mood ||
+    item.intensity ||
+    "Unknown";
+
   const getDate = (item) => {
     const value =
       item.date ||
@@ -40,78 +46,63 @@ function History() {
 
     if (!value) return "Date unavailable";
 
-    return String(value).split(/[ T]/)[0];
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime())
+      ? String(value)
+      : parsed.toLocaleDateString();
   };
 
-  const getIntensity = (item) =>
-    item.intensity || item.mood || "Unknown";
+  const getRecordKey = (item) =>
+    item.id != null
+      ? `id-${item.id}`
+      : `${getSongName(item)}-${item.date || item.created_at || ""}-${getMood(item)}`;
+
+  const mergeRecords = (backendRecords, localRecords) => {
+    const merged = [...backendRecords];
+    const keys = new Set(merged.map(getRecordKey));
+
+    localRecords.forEach((item) => {
+      const key = getRecordKey(item);
+      if (!keys.has(key)) {
+        merged.push(item);
+        keys.add(key);
+      }
+    });
+
+    return merged;
+  };
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
     setError("");
+    setHistory(getLocalHistory());
 
     try {
       const response = await fetch(`${API_URL}/history`);
+
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        throw new Error(`Request failed: ${response.status}`);
       }
 
       const data = await response.json();
 
       if (data.success === false) {
-        throw new Error(data.error || "History request failed.");
+        throw new Error(data.error || "Unable to load history.");
       }
 
       const backendRecords = Array.isArray(data.predictions)
         ? data.predictions
         : [];
 
-      // Combine backend and local records without duplicate IDs.
-      const localRecords = getLocalHistory();
-      const combined = [...backendRecords];
-
-      localRecords.forEach((localItem) => {
-        const duplicate = combined.some((serverItem) => {
-          if (
-            localItem.id != null &&
-            serverItem.id != null
-          ) {
-            return String(localItem.id) === String(serverItem.id);
-          }
-
-          return (
-            getSongName(localItem) === getSongName(serverItem) &&
-            getDate(localItem) === getDate(serverItem) &&
-            (localItem.mood || "") === (serverItem.mood || "")
-          );
-        });
-
-        if (!duplicate) combined.push(localItem);
-      });
-
-      combined.sort((a, b) => {
-        const dateA = new Date(
-          a.date || a.created_at || a.timestamp || 0
-        ).getTime();
-        const dateB = new Date(
-          b.date || b.created_at || b.timestamp || 0
-        ).getTime();
-
-        return dateB - dateA;
-      });
-
-      setHistory(combined);
+      setHistory(
+        mergeRecords(backendRecords, getLocalHistory())
+      );
     } catch (err) {
       console.error("History loading error:", err);
-
-      const localRecords = getLocalHistory();
-      setHistory(localRecords);
-
       setError(
-        localRecords.length
-          ? "Backend history उपलब्ध नाही. Browser मधील अलीकडील records दाखवत आहोत."
-          : "History load झाली नाही. पुन्हा प्रयत्न करा."
+        "Backend history उपलब्ध नाही. Browser मधील saved records दाखवत आहोत."
       );
+      setHistory(getLocalHistory());
     } finally {
       setLoading(false);
     }
@@ -132,49 +123,41 @@ function History() {
         );
 
         if (!response.ok) {
-          throw new Error("Backend delete failed.");
+          throw new Error("Could not delete backend record.");
         }
 
-        const result = await response.json();
-        if (result.success === false) {
-          throw new Error(result.error || "Delete failed.");
+        const data = await response.json();
+
+        if (data.success === false) {
+          throw new Error(data.error || "Delete failed.");
         }
       }
 
-      const updated = history.filter((record) => record !== item);
-      setHistory(updated);
-
-      // Keep local-only records in browser storage.
-      const localRecords = getLocalHistory();
-      const remainingLocal = localRecords.filter(
+      const updatedLocal = getLocalHistory().filter(
         (record) =>
-          !(
-            getSongName(record) === getSongName(item) &&
-            getDate(record) === getDate(item) &&
-            (record.mood || "") === (item.mood || "")
-          )
+          getRecordKey(record) !== getRecordKey(item)
       );
 
       localStorage.setItem(
         "predictionHistory",
-        JSON.stringify(remainingLocal)
+        JSON.stringify(updatedLocal)
+      );
+
+      setHistory((previous) =>
+        previous.filter(
+          (record) =>
+            getRecordKey(record) !== getRecordKey(item)
+        )
       );
     } catch (err) {
-      alert(
-        err.message ||
-          "Record delete झाला नाही. पुन्हा प्रयत्न करा."
-      );
+      alert(err.message || "Unable to delete record.");
     }
   };
 
   const clearAll = async () => {
     if (!history.length) return;
 
-    if (
-      !window.confirm(
-        "सर्व prediction history delete करायची आहे का?"
-      )
-    ) {
+    if (!window.confirm("Clear all prediction history?")) {
       return;
     }
 
@@ -186,23 +169,20 @@ function History() {
       });
 
       if (!response.ok) {
-        throw new Error("Backend clear failed.");
+        throw new Error("Could not clear backend history.");
       }
 
       const data = await response.json();
 
       if (data.success === false) {
-        throw new Error(data.error || "Clear failed.");
+        throw new Error(data.error || "Clear history failed.");
       }
 
       localStorage.removeItem("predictionHistory");
       setHistory([]);
       setError("");
     } catch (err) {
-      alert(
-        err.message ||
-          "History clear झाली नाही. पुन्हा प्रयत्न करा."
-      );
+      alert(err.message || "Unable to clear history.");
     } finally {
       setClearing(false);
     }
@@ -217,7 +197,6 @@ function History() {
 
         <div className="history-header">
           <div className="history-icon">📜</div>
-
           <div className="history-title-content">
             <p className="history-eyebrow">MUSIC ANALYTICS</p>
             <h1>Prediction History</h1>
@@ -240,7 +219,9 @@ function History() {
           <button
             className="clear-all-button"
             onClick={clearAll}
-            disabled={clearing || loading || history.length === 0}
+            disabled={
+              clearing || loading || history.length === 0
+            }
           >
             {clearing ? "Clearing..." : "🗑️ Clear All"}
           </button>
@@ -276,7 +257,10 @@ function History() {
                   <tbody>
                     {history.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="history-empty">
+                        <td
+                          colSpan="4"
+                          className="history-empty"
+                        >
                           No prediction history found.
                           <br />
                           <Link to="/upload">
@@ -287,23 +271,17 @@ function History() {
                     ) : (
                       history.map((item, index) => (
                         <tr
-                          key={
-                            item.id ??
-                            `${getSongName(item)}-${getDate(item)}-${index}`
-                          }
+                          key={`${getRecordKey(item)}-${index}`}
                         >
                           <td className="history-song">
                             🎵 {getSongName(item)}
                           </td>
-
                           <td>
                             <span className="intensity-badge">
-                              {getIntensity(item)}
+                              {getMood(item)}
                             </span>
                           </td>
-
                           <td>{getDate(item)}</td>
-
                           <td>
                             <button
                               className="delete-button"
