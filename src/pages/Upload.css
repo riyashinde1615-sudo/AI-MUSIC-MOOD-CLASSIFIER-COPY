@@ -1,68 +1,258 @@
+
+/* ===== Complete Upload Music Design ===== */
+
 .upload-page {
   min-height: 100vh;
-  background: #f5f6ff;
-  padding: 40px;
   box-sizing: border-box;
+  padding: 44px 7%;
+  background: linear-gradient(135deg, #f8fbff, #eef5ff, #f6f1ff);
+  color: #172554;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .upload-container {
-  max-width: 700px;
+  width: 100%;
+  max-width: 1150px;
   margin: 0 auto;
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-  text-align: center;
 }
 
 .upload-container h1 {
-  color: #333;
-  margin-bottom: 10px;
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
 }
 
-.upload-container p {
-  color: #777;
-  margin-bottom: 30px;
+.upload-subtitle {
+  margin: 0 0 30px;
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.upload-box {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 38px 30px;
+  border: 2px dashed #91baf3;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #ffffff, #f5f9ff);
+  box-shadow: 0 12px 35px rgba(37, 99, 235, 0.08);
+  transition: border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.upload-box:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 14px 36px rgba(37, 99, 235, 0.13);
+}
+
+.upload-headphone {
+  margin-bottom: 12px;
+  font-size: 42px;
+  line-height: 1.2;
+}
+
+.upload-box h2 {
+  margin: 8px 0 6px;
+  color: #172033;
+  font-size: 21px;
+  font-weight: 750;
+}
+
+.upload-formats {
+  margin: 0 0 24px;
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .file-input {
-  width: 100%;
-  padding: 15px;
-  border: 2px dashed #667eea;
-  border-radius: 12px;
-  background: #f8f9ff;
+  display: block;
   box-sizing: border-box;
+  width: 100%;
+  min-height: 50px;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 14px;
+}
+
+.file-input::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #1e293b;
   cursor: pointer;
 }
 
-.upload-button {
-  margin-top: 25px;
-  padding: 13px 30px;
-  border: none;
-  border-radius: 10px;
-  background: #667eea;
-  color: white;
+.selected-file {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eaf3ff;
+  color: #1d4ed8;
+  overflow-wrap: anywhere;
+}
+
+.selected-file span {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.selected-file strong {
+  color: #1e3a8a;
   font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
+  line-height: 1.5;
 }
 
-.upload-button:hover {
-  background: #5568d9;
-}
-
-.upload-button:disabled {
-  background: #aaa;
-  cursor: not-allowed;
+.selected-file small {
+  color: #64748b;
 }
 
 .error-message {
-  color: red;
-  margin-top: 15px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .loading-message {
-  color: #667eea;
-  margin-top: 15px;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 15px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  text-align: center;
+}
+
+.upload-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 3px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: upload-spin 0.8s linear infinite;
+}
+
+@keyframes upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Large blue Analyze Song button */
+
+.upload-button {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 22px;
+  padding: 18px 24px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #2684f5, #315de8);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 7px 18px rgba(37, 99, 235, 0.23);
+  transition: background 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: linear-gradient(110deg, #1768d9, #4338ca);
+  transform: translateY(-2px);
+  box-shadow: 0 11px 25px rgba(37, 99, 235, 0.3);
+}
+
+.upload-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.upload-button:disabled {
+  background: #90caf9;
+  color: #ffffff;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.upload-back {
+  margin-top: 28px;
+  text-align: center;
+}
+
+.upload-back a {
+  color: #4f46e5;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.upload-back a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Tablet and mobile */
+
+@media (max-width: 768px) {
+  .upload-page {
+    padding: 28px 18px;
+  }
+
+  .upload-container h1 {
+    font-size: 30px;
+  }
+
+  .upload-subtitle {
+    margin-bottom: 22px;
+    font-size: 14px;
+  }
+
+  .upload-box {
+    padding: 26px 18px;
+    border-radius: 17px;
+  }
+
+  .upload-box h2 {
+    font-size: 19px;
+  }
+
+  .upload-formats {
+    font-size: 14px;
+  }
+
+  .file-input {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .upload-button {
+    min-height: 58px;
+    padding: 16px;
+    font-size: 16px;
+  }
 }
