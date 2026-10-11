@@ -10,10 +10,7 @@ function Recommendations() {
 
   const audioRef = useRef(null);
 
-  // ==========================================
-  // LOAD SONG + MOOD + AUDIO
-  // ==========================================
-
+  // LOAD SONG, MOOD AND AUDIO
   useEffect(() => {
     const savedSongName = localStorage.getItem("uploadedSongName");
 
@@ -21,48 +18,57 @@ function Recommendations() {
       setSongName(savedSongName);
     }
 
-    const savedMoodData = localStorage.getItem("moodData");
+    try {
+      const savedMoodData = localStorage.getItem("moodData");
 
-    if (savedMoodData) {
-      try {
+      if (savedMoodData) {
         const data = JSON.parse(savedMoodData);
 
-        if (data.mood) {
-          setMood(data.mood);
+        const detectedMood =
+          data.mood ??
+          data.predicted_mood ??
+          data.predictedMood ??
+          data.dominant_mood ??
+          data.emotion;
+
+        if (
+          typeof detectedMood === "string" &&
+          detectedMood.trim()
+        ) {
+          setMood(detectedMood.trim());
         }
-      } catch (error) {
-        console.error("Mood data error:", error);
       }
+    } catch (error) {
+      console.error("Mood data error:", error);
     }
 
-    const savedAudioUrl = localStorage.getItem("uploadedAudioUrl");
+    const savedAudioUrl =
+      localStorage.getItem("uploadedAudioUrl");
 
     if (savedAudioUrl) {
       setAudioUrl(savedAudioUrl);
     }
   }, []);
 
-  // ==========================================
   // MOOD EMOJI
-  // ==========================================
-
   const getMoodEmoji = () => {
-    const currentMood = mood.toLowerCase();
+    const currentMood = String(mood).toLowerCase();
 
     if (currentMood === "happy") return "😊";
     if (currentMood === "sad") return "😢";
-    if (currentMood === "relaxed") return "😌";
+    if (["relaxed", "calm"].includes(currentMood)) return "😌";
     if (currentMood === "energetic") return "⚡";
+    if (currentMood === "aggressive") return "🔥";
+    if (currentMood === "romantic") return "❤️";
+    if (currentMood === "dramatic") return "🎭";
+    if (currentMood === "neutral") return "😐";
 
     return "🎵";
   };
 
-  // ==========================================
-  // RECOMMENDATIONS
-  // ==========================================
-
+  // MOOD-BASED SUGGESTIONS
   const getRecommendations = () => {
-    const currentMood = mood.toLowerCase();
+    const currentMood = String(mood).toLowerCase();
 
     if (currentMood === "sad") {
       return [
@@ -84,13 +90,13 @@ function Recommendations() {
           name: "Calm Escape",
           mood: "😌 Relaxed",
           description:
-            "Gentle music to create a calm atmosphere.",
+            "Gentle melodies for a calm atmosphere.",
           icon: "🌙",
         },
       ];
     }
 
-    if (currentMood === "relaxed") {
+    if (["relaxed", "calm"].includes(currentMood)) {
       return [
         {
           name: "Peaceful Vibes",
@@ -142,19 +148,97 @@ function Recommendations() {
       ];
     }
 
+    if (currentMood === "aggressive") {
+      return [
+        {
+          name: "Power Beats",
+          mood: "🔥 Intense",
+          description:
+            "Strong rhythms for an intense listening mood.",
+          icon: "🔥",
+        },
+        {
+          name: "Energetic Beats",
+          mood: "⚡ Energetic",
+          description:
+            "Upbeat music with energetic rhythms.",
+          icon: "⚡",
+        },
+        {
+          name: "Focus Vibes",
+          mood: "🎧 Focused",
+          description:
+            "Rhythmic music for focused listening.",
+          icon: "🎧",
+        },
+      ];
+    }
+
+    if (currentMood === "romantic") {
+      return [
+        {
+          name: "Romantic Melodies",
+          mood: "❤️ Romantic",
+          description:
+            "Gentle melodies for a romantic atmosphere.",
+          icon: "❤️",
+        },
+        {
+          name: "Dreamy Music",
+          mood: "🌙 Dreamy",
+          description:
+            "Soft sounds and soothing melodies.",
+          icon: "🌙",
+        },
+        {
+          name: "Peaceful Moments",
+          mood: "😌 Relaxed",
+          description:
+            "Relaxing music for quiet moments.",
+          icon: "😌",
+        },
+      ];
+    }
+
+    if (currentMood === "dramatic") {
+      return [
+        {
+          name: "Cinematic Vibes",
+          mood: "🎭 Dramatic",
+          description:
+            "Expressive music with a cinematic atmosphere.",
+          icon: "🎭",
+        },
+        {
+          name: "Power Music",
+          mood: "🔥 Intense",
+          description:
+            "Dynamic music with powerful rhythms.",
+          icon: "🔥",
+        },
+        {
+          name: "Emotional Melodies",
+          mood: "🎵 Emotional",
+          description:
+            "Expressive melodies for emotional listening.",
+          icon: "🎶",
+        },
+      ];
+    }
+
     return [
       {
         name: "Happy Vibes",
         mood: "😊 Happy",
         description:
-          "Positive and cheerful music.",
+          "Positive and cheerful music suggestions.",
         icon: "😊",
       },
       {
         name: "Feel Good Music",
-        mood: "😊 Happy",
+        mood: "🎶 Positive",
         description:
-          "Relaxing and positive vibes.",
+          "Light and uplifting musical suggestions.",
         icon: "🎶",
       },
       {
@@ -169,10 +253,7 @@ function Recommendations() {
 
   const recommendations = getRecommendations();
 
-  // ==========================================
-  // PLAY RECOMMENDATION
-  // ==========================================
-
+  // PLAY OR PAUSE UPLOADED AUDIO
   const handlePlay = async (index) => {
     setAudioError("");
 
@@ -185,61 +266,46 @@ function Recommendations() {
 
     if (!audioUrl) {
       setAudioError(
-        "Uploaded audio is not available. Please upload the song again."
+        "Uploaded audio is unavailable. Please upload the song again."
       );
       return;
     }
 
-    // Same song → Pause
-    if (playingIndex === index) {
+    if (playingIndex === index && !audio.paused) {
       audio.pause();
       setPlayingIndex(null);
       return;
     }
 
     try {
-      // Stop previous playback
       audio.pause();
 
-      // Reset player
+      if (audio.src !== new URL(audioUrl, window.location.href).href) {
+        audio.src = audioUrl;
+      }
+
       audio.currentTime = 0;
-
-      // Set uploaded audio
-      audio.src = audioUrl;
-
-      // Make sure browser loads the audio
       audio.load();
 
-      // Play
       await audio.play();
 
       setPlayingIndex(index);
     } catch (error) {
       console.error("Audio playback error:", error);
-
       setPlayingIndex(null);
 
       setAudioError(
-        "Unable to play this audio. Please upload the song again and try."
+        "Unable to play the audio. Please upload the song again and try."
       );
     }
   };
 
-  // ==========================================
-  // AUDIO ENDED
-  // ==========================================
-
+  // AUDIO EVENTS
   const handleEnded = () => {
     setPlayingIndex(null);
   };
 
-  // ==========================================
-  // AUDIO ERROR
-  // ==========================================
-
   const handleAudioError = () => {
-    console.error("Audio element error");
-
     setPlayingIndex(null);
 
     setAudioError(
@@ -247,10 +313,7 @@ function Recommendations() {
     );
   };
 
-  // ==========================================
-  // STOP AUDIO WHEN PAGE CLOSES
-  // ==========================================
-
+  // STOP PLAYBACK WHEN LEAVING PAGE
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -259,17 +322,11 @@ function Recommendations() {
     };
   }, []);
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
   return (
     <div className="recommendations-page">
-
       <div className="recommendations-container">
 
         {/* BACK */}
-
         <Link
           to="/mood-result"
           className="recommendations-back"
@@ -278,149 +335,87 @@ function Recommendations() {
         </Link>
 
         {/* HEADER */}
-
         <div className="recommendations-header">
+          <div className="recommendations-icon">🎵</div>
 
-          <div className="recommendations-icon">
-            🎵
-          </div>
-
-          <h1>
-            Song Recommendations
-          </h1>
+          <h1>Song Recommendations</h1>
 
           <p>
-            Discover music recommendations
-            based on your detected mood.
+            Discover music recommendations based on your
+            detected mood.
           </p>
-
         </div>
 
         {/* UPLOADED SONG */}
-
         <div className="recommendation-source-card">
-
-          <div className="source-icon">
-            🎶
-          </div>
+          <div className="source-icon">🎶</div>
 
           <div>
-
-            <span>
-              YOUR UPLOADED SONG
-            </span>
-
-            <h3>
-              {songName}
-            </h3>
-
+            <span>YOUR UPLOADED SONG</span>
+            <h3>{songName}</h3>
           </div>
-
         </div>
 
         {/* DETECTED MOOD */}
-
         <div className="recommendation-mood-card">
-
           <div>
-
-            <span>
-              DETECTED MOOD
-            </span>
-
+            <span>DETECTED MOOD</span>
             <h2>
               {getMoodEmoji()} {mood}
             </h2>
-
           </div>
 
           <div className="mood-status">
-            🤖 AI Analyzed
+            🤖 Mood Result Loaded
           </div>
-
         </div>
 
         {/* RECOMMENDATIONS */}
-
         <div className="recommendation-list">
-
           <div className="recommendation-subtitle">
-
-            <h2>
-              🎧 Recommended Songs
-            </h2>
+            <h2>🎧 Recommended Songs</h2>
 
             <p>
-              Music suggestions matching
-              your detected mood.
+              Music suggestions matching your detected mood.
             </p>
-
           </div>
 
           <div className="recommendation-grid">
-
             {recommendations.map((song, index) => (
-
               <div
                 className="recommendation-card"
-                key={index}
+                key={song.name}
               >
-
-                {/* COVER */}
-
                 <div className="recommendation-cover">
-
-                  <span>
-                    {song.icon}
-                  </span>
-
-                  <div className="cover-note">
-                    ♪
-                  </div>
-
+                  <span>{song.icon}</span>
+                  <div className="cover-note">♪</div>
                 </div>
 
-                {/* INFO */}
-
                 <div className="recommendation-info">
-
-                  <h3>
-                    {song.name}
-                  </h3>
+                  <h3>{song.name}</h3>
 
                   <span className="mood-tag">
                     {song.mood}
                   </span>
 
-                  <p>
-                    {song.description}
-                  </p>
-
-                  {/* PLAY */}
+                  <p>{song.description}</p>
 
                   <button
+                    type="button"
                     className="play-recommendation"
-                    onClick={() =>
-                      handlePlay(index)
-                    }
+                    onClick={() => handlePlay(index)}
                   >
                     {playingIndex === index
                       ? "⏸ Pause"
-                      : "▶ Play"}
+                      : "▶ Play Uploaded Song"}
                   </button>
-
                 </div>
-
               </div>
-
             ))}
-
           </div>
-
         </div>
 
         {/* AUDIO PLAYER */}
-
         <audio
           ref={audioRef}
           controls
@@ -433,11 +428,10 @@ function Recommendations() {
           }}
         />
 
-        {/* ERROR */}
-
+        {/* ERROR MESSAGE */}
         {audioError && (
-
           <div
+            role="alert"
             style={{
               marginTop: "15px",
               padding: "12px 16px",
@@ -450,57 +444,39 @@ function Recommendations() {
           >
             ⚠️ {audioError}
           </div>
-
         )}
 
-        {/* AI INFORMATION */}
-
+        {/* INFORMATION */}
         <div className="recommendation-info-box">
+          <div>🧠</div>
 
           <div>
-            🧠
-          </div>
-
-          <div>
-
-            <strong>
-              AI Recommendation
-            </strong>
+            <strong>Mood-Based Suggestions</strong>
 
             <p>
-              These recommendations are
-              selected according to the
-              emotional mood detected from
-              your uploaded music.
+              These suggestions are selected using the mood
+              detected from your uploaded music. The cards are
+              suggestions, not verified tracks from a music
+              streaming service.
             </p>
-
           </div>
-
         </div>
 
-        {/* BACK TO DASHBOARD */}
-
+        {/* DASHBOARD */}
         <div
           style={{
             textAlign: "center",
             marginTop: "25px",
           }}
         >
-
           <Link
             to="/dashboard"
             className="result-action-btn"
           >
-            🏠
-            <span>
-              Back to Dashboard
-            </span>
+            🏠 <span>Back to Dashboard</span>
           </Link>
-
         </div>
-
       </div>
-
     </div>
   );
 }
