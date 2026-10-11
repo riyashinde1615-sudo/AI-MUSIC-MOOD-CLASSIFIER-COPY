@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "./History.css";
 
 const API_URL =
@@ -17,6 +18,8 @@ const formatDate = (value) => {
 };
 
 function History() {
+  const navigate = useNavigate();
+
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,22 +62,56 @@ function History() {
     fetchHistory();
   }, []);
 
-  // This removes the record from the current screen only.
-  // Permanent deletion needs a backend DELETE endpoint.
-  const removeFromScreen = (index) => {
-    if (window.confirm("हा record स्क्रीनवरून काढायचा आहे का?")) {
+  const deleteRecord = async (item, index) => {
+    const confirmed = window.confirm(
+      "हा record कायमचा delete करायचा आहे का?"
+    );
+
+    if (!confirmed) return;
+
+    if (item.id == null) {
+      alert("या record ची ID उपलब्ध नाही. Delete करता येणार नाही.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/history/${item.id}`,
+        { method: "DELETE" }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Delete failed");
+      }
+
       setHistory((previous) =>
         previous.filter((_, i) => i !== index)
       );
+    } catch (err) {
+      console.error("Delete history error:", err);
+      alert(`Record delete झाला नाही: ${err.message}`);
     }
   };
 
   return (
     <div className="history-page">
       <div className="history-container">
+
+        <button
+          type="button"
+          className="history-back-button"
+          onClick={() => navigate("/dashboard")}
+        >
+          ← Back to Dashboard
+        </button>
+
         <div className="history-heading">
           <div>
-            <p className="history-eyebrow">ANALYSIS RECORDS</p>
+            <p className="history-eyebrow">
+              ANALYSIS RECORDS
+            </p>
             <h1>Your Predictions</h1>
           </div>
 
@@ -84,13 +121,16 @@ function History() {
         </div>
 
         {loading && (
-          <p className="history-message">Loading history...</p>
+          <p className="history-message">
+            Loading history...
+          </p>
         )}
 
         {!loading && error && (
           <div className="history-error">
             <p>{error}</p>
             <button
+              type="button"
               className="history-refresh"
               onClick={fetchHistory}
             >
@@ -157,8 +197,11 @@ function History() {
 
                         <td>
                           <button
+                            type="button"
                             className="delete-button"
-                            onClick={() => removeFromScreen(index)}
+                            onClick={() =>
+                              deleteRecord(item, index)
+                            }
                           >
                             🗑️ Delete
                           </button>
@@ -174,12 +217,20 @@ function History() {
 
         {!loading && (
           <button
+            type="button"
             className="history-refresh"
             onClick={fetchHistory}
           >
             Refresh History
           </button>
         )}
+
+        <div className="history-bottom-actions">
+          <Link to="/mood-result" className="history-back-link">
+            ← Back to Mood Result
+          </Link>
+        </div>
+
       </div>
     </div>
   );
