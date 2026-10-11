@@ -1,9 +1,12 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API_URL = "https://ai-music-mood-classifier-copy.onrender.com";
+const API_URL =
+  "https://ai-music-mood-classifier-copy.onrender.com";
+
+const ALLOWED_EXTENSIONS = /\.(mp3|wav|ogg|m4a|flac)$/i;
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 function Upload() {
   const [file, setFile] = useState(null);
@@ -18,19 +21,26 @@ function Upload() {
 
     setError("");
     setSuccess("");
+    setFile(null);
 
-    if (!selectedFile) {
-      setFile(null);
-      return;
-    }
+    if (!selectedFile) return;
 
-    const allowedExtensions = /\.(mp3|wav|ogg|m4a|flac)$/i;
-
-    if (!allowedExtensions.test(selectedFile.name)) {
-      setFile(null);
+    if (!ALLOWED_EXTENSIONS.test(selectedFile.name)) {
       setError(
         "Please select an MP3, WAV, OGG, M4A or FLAC audio file."
       );
+      event.target.value = "";
+      return;
+    }
+
+    if (selectedFile.size === 0) {
+      setError("The selected file is empty. Please choose another song.");
+      event.target.value = "";
+      return;
+    }
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setError("File size must be less than or equal to 25 MB.");
       event.target.value = "";
       return;
     }
@@ -54,7 +64,7 @@ function Upload() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const moodResponse = await axios.post(
+      const response = await axios.post(
         `${API_URL}/mood`,
         formData,
         {
@@ -62,36 +72,40 @@ function Upload() {
         }
       );
 
-      const moodData = moodResponse.data;
+      const moodData = response.data;
 
       if (
-        moodData?.success === false ||
-        moodData?.error ||
-        moodData?.mood == null
+        !moodData ||
+        moodData.success === false ||
+        moodData.error ||
+        !moodData.mood
       ) {
         throw new Error(
           moodData?.error || "Mood prediction failed."
         );
       }
 
-      localStorage.setItem(
-        "moodData",
-        JSON.stringify(moodData)
-      );
+      // Save prediction result.
+      localStorage.setItem("moodData", JSON.stringify(moodData));
+      localStorage.setItem("uploadedSongName", file.name);
 
-      localStorage.setItem(
-        "uploadedSongName",
-        file.name
-      );
+      // Save a temporary audio URL for playback in this browser session.
+      const previousAudioUrl =
+        localStorage.getItem("uploadedAudioUrl");
 
-      const localAudioUrl = URL.createObjectURL(file);
+      if (previousAudioUrl?.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(previousAudioUrl);
+        } catch {
+          // Ignore an invalid or expired object URL.
+        }
+      }
 
-      localStorage.setItem(
-        "uploadedAudioUrl",
-        localAudioUrl
-      );
+      const audioUrl = URL.createObjectURL(file);
+      localStorage.setItem("uploadedAudioUrl", audioUrl);
 
-      let existingHistory = [];
+      // Save prediction history locally.
+      let history = [];
 
       try {
         const savedHistory = JSON.parse(
@@ -99,13 +113,10 @@ function Upload() {
         );
 
         if (Array.isArray(savedHistory)) {
-          existingHistory = savedHistory;
+          history = savedHistory;
         }
-      } catch (historyError) {
-        console.warn(
-          "Could not read previous history:",
-          historyError
-        );
+      } catch {
+        history = [];
       }
 
       const prediction = {
@@ -116,17 +127,13 @@ function Upload() {
         date: new Date().toISOString(),
       };
 
-      const updatedHistory = [
-        prediction,
-        ...existingHistory,
-      ];
-
       localStorage.setItem(
         "predictionHistory",
-        JSON.stringify(updatedHistory)
+        JSON.stringify([prediction, ...history].slice(0, 100))
       );
 
       setSuccess("Song analyzed successfully!");
+
       navigate("/mood-result");
     } catch (err) {
       console.error("Song analysis error:", err);
@@ -134,16 +141,23 @@ function Upload() {
       if (err.response) {
         setError(
           err.response.data?.error ||
+            err.response.data?.detail ||
             `Backend error: ${err.response.status}`
         );
-      } else if (err.code === "ECONNABORTED") {
+      } else if (
+        err.code === "ECONNABORTED" ||
+        err.code === "ETIMEDOUT"
+      ) {
         setError(
-          "Analysis timed out. Please try again in a moment."
+          "Analysis timed out. Please try again."
+        );
+      } else if (err.request) {
+        setError(
+          "Cannot connect to the backend. Please try again later."
         );
       } else {
         setError(
-          err.message ||
-            "Cannot connect to the backend. Please try again."
+          err.message || "Something went wrong. Please try again."
         );
       }
     } finally {
@@ -172,8 +186,9 @@ function Upload() {
 
             <input
               id="song-file"
+              className="file-input"
               type="file"
-              accept=".mp3,.wav,.ogg,.m4a,.flac,audio/*"
+              accept=".mp3,.wav,.ogg,.m4a,.flac"
               onChange={handleFileChange}
               disabled={analyzing}
             />
@@ -187,13 +202,12 @@ function Upload() {
 
           {error && (
             <div
+              className="error-message"
               role="alert"
               style={{
-                color: "#b91c1c",
                 background: "#fee2e2",
                 padding: "12px",
                 borderRadius: "8px",
-                marginTop: "16px",
               }}
             >
               {error}
@@ -201,29 +215,15 @@ function Upload() {
           )}
 
           {success && (
-            <p role="status" style={{ color: "green" }}>
+            <p className="loading-message" role="status">
               {success}
             </p>
           )}
 
           <button
+            className="upload-button"
             type="submit"
             disabled={!file || analyzing}
-            style={{
-              width: "100%",
-              padding: "14px",
-              marginTop: "20px",
-              border: "none",
-              borderRadius: "8px",
-              background: analyzing ? "#999" : "#667eea",
-              color: "white",
-              fontSize: "16px",
-              fontWeight: "bold",
-              cursor:
-                analyzing || !file
-                  ? "not-allowed"
-                  : "pointer",
-            }}
           >
             {analyzing
               ? "Analyzing Song..."
@@ -231,24 +231,14 @@ function Upload() {
           </button>
 
           {analyzing && (
-            <p
-              role="status"
-              style={{ textAlign: "center" }}
-            >
+            <p className="loading-message" role="status">
               Please wait while AI analyzes your song.
             </p>
           )}
         </form>
 
-        <div
-          style={{
-            marginTop: "24px",
-            textAlign: "center",
-          }}
-        >
-          <Link to="/dashboard">
-            Back to Dashboard
-          </Link>
+        <div style={{ marginTop: "24px", textAlign: "center" }}>
+          <Link to="/dashboard">Back to Dashboard</Link>
         </div>
       </div>
     </div>
