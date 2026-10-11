@@ -1,0 +1,246 @@
+
+/* Mood Transition Page */
+
+.mood-transition-page {
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #10152f, #251447, #111827);
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+}
+
+.mood-transition-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.mood-transition-back {
+  display: inline-block;
+  margin-bottom: 28px;
+  color: #c4b5fd;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mood-transition-back:hover {
+  color: #ffffff;
+}
+
+.mood-transition-header {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.mood-transition-icon {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(196, 181, 253, 0.35);
+  font-size: 38px;
+}
+
+.mood-transition-header h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  background: linear-gradient(90deg, #c4b5fd, #f0abfc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.mood-transition-header p {
+  max-width: 650px;
+  margin: 0 auto;
+  color: #cbd5e1;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.transition-song-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  margin-bottom: 28px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  overflow-wrap: anywhere;
+}
+
+.transition-song-icon {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  font-size: 28px;
+}
+
+.transition-song-card h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.transition-song-card p {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.transition-song-card strong {
+  color: #ddd6fe;
+}
+
+.transition-empty-card {
+  padding: 42px 24px;
+  text-align: center;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+}
+
+.transition-empty-card .empty-icon {
+  font-size: 48px;
+  margin-bottom: 14px;
+}
+
+.transition-empty-card h3 {
+  margin: 0 0 12px;
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.transition-empty-card p {
+  max-width: 550px;
+  margin: 0 auto 22px;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.timeline-upload-button {
+  display: inline-block;
+  padding: 13px 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.timeline-upload-button:hover {
+  transform: translateY(-2px);
+  opacity: 0.92;
+}
+
+.transition-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.transition-card {
+  min-width: 0;
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.14);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.transition-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(196, 181, 253, 0.6);
+}
+
+.transition-time {
+  margin-bottom: 18px;
+  color: #c4b5fd;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.transition-moods {
+  margin-bottom: 14px;
+}
+
+.mood-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 10px 15px;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(196, 181, 253, 0.3);
+  color: #ede9fe;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.transition-description {
+  margin: 0 0 14px;
+  color: #cbd5e1;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.transition-confidence {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a7f3d0;
+  font-size: 14px;
+}
+
+.transition-confidence strong {
+  color: #6ee7b7;
+}
+
+@media (max-width: 650px) {
+  .mood-transition-page {
+    padding: 25px 14px;
+  }
+
+  .mood-transition-header {
+    margin-bottom: 25px;
+  }
+
+  .transition-song-card {
+    padding: 17px;
+    gap: 13px;
+  }
+
+  .transition-song-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .transition-list {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .transition-card {
+    padding: 20px;
+  }
+
+  .transition-empty-card {
+    padding: 30px 18px;
+  }
+}
