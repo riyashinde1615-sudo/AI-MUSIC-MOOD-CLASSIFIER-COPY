@@ -1,10 +1,6 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-
-// Render Backend URL
-
 
 const API_URL = "https://ai-music-mood-backend.onrender.com";
 
@@ -16,7 +12,6 @@ function Upload() {
 
   const navigate = useNavigate();
 
-  // Select and validate audio file
   const handleFileChange = (event) => {
     const selectedFile = event.target.files?.[0];
 
@@ -42,7 +37,6 @@ function Upload() {
     setFile(selectedFile);
   };
 
-  // Upload song and analyze mood
   const handleUpload = async (event) => {
     event.preventDefault();
 
@@ -56,17 +50,15 @@ function Upload() {
     setSuccess("");
 
     try {
-      const createFormData = () => {
-        const formData = new FormData();
-        formData.append("file", file);
-        return formData;
-      };
+      const formData = new FormData();
+      formData.append("file", file);
 
-      // 1. Main mood prediction
       const moodResponse = await axios.post(
         `${API_URL}/mood`,
-        createFormData(),
-        { timeout: 180000 }
+        formData,
+        {
+          timeout: 180000,
+        }
       );
 
       const moodData = moodResponse.data;
@@ -81,56 +73,23 @@ function Upload() {
         );
       }
 
-      localStorage.setItem("moodData", JSON.stringify(moodData));
-      localStorage.setItem("uploadedSongName", file.name);
+      localStorage.setItem(
+        "moodData",
+        JSON.stringify(moodData)
+      );
 
-      // Save selected audio for playback
+      localStorage.setItem(
+        "uploadedSongName",
+        file.name
+      );
+
       const localAudioUrl = URL.createObjectURL(file);
-      localStorage.setItem("uploadedAudioUrl", localAudioUrl);
 
-      // 2. Mood transition analysis
-      try {
-        const transitionResponse = await axios.post(
-          `${API_URL}/mood-transition`,
-          createFormData(),
-          { timeout: 180000 }
-        );
+      localStorage.setItem(
+        "uploadedAudioUrl",
+        localAudioUrl
+      );
 
-        if (transitionResponse.data) {
-          localStorage.setItem(
-            "moodTransitionData",
-            JSON.stringify(transitionResponse.data)
-          );
-        }
-      } catch (transitionError) {
-        console.warn(
-          "Mood transition analysis failed:",
-          transitionError
-        );
-      }
-
-      // 3. Multi-mood analysis
-      try {
-        const multiMoodResponse = await axios.post(
-          `${API_URL}/multi-mood`,
-          createFormData(),
-          { timeout: 180000 }
-        );
-
-        if (multiMoodResponse.data) {
-          localStorage.setItem(
-            "multiMoodData",
-            JSON.stringify(multiMoodResponse.data)
-          );
-        }
-      } catch (multiMoodError) {
-        console.warn(
-          "Multi-mood analysis failed:",
-          multiMoodError
-        );
-      }
-
-      // 4. Save prediction in browser history
       let existingHistory = [];
 
       try {
@@ -142,7 +101,10 @@ function Upload() {
           existingHistory = savedHistory;
         }
       } catch (historyError) {
-        console.warn("Could not read previous history:", historyError);
+        console.warn(
+          "Could not read previous history:",
+          historyError
+        );
       }
 
       const prediction = {
@@ -163,7 +125,6 @@ function Upload() {
         JSON.stringify(updatedHistory)
       );
 
-      // 5. Open the result page
       setSuccess("Song analyzed successfully!");
       navigate("/mood-result");
     } catch (err) {
@@ -178,12 +139,10 @@ function Upload() {
         setError(
           "Analysis timed out. Please try again in a moment."
         );
-      } else if (err.message === "Mood prediction failed.") {
-        setError(err.message);
       } else {
         setError(
-          err.message || 
-            "Cannot connect to the backend. Please check the Render backend service and try again."
+          err.message ||
+            "Cannot connect to the backend. Please try again."
         );
       }
     } finally {
@@ -260,22 +219,35 @@ function Upload() {
               fontSize: "16px",
               fontWeight: "bold",
               cursor:
-                analyzing || !file ? "not-allowed" : "pointer",
+                analyzing || !file
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
-            {analyzing ? "Analyzing Song..." : "Analyze Song 🎶"}
+            {analyzing
+              ? "Analyzing Song..."
+              : "Analyze Song 🎶"}
           </button>
 
           {analyzing && (
-            <p role="status" style={{ textAlign: "center" }}>
-              Please wait while AI analyzes your song. This may
-              take a few minutes if the backend is starting up.
+            <p
+              role="status"
+              style={{ textAlign: "center" }}
+            >
+              Please wait while AI analyzes your song.
             </p>
           )}
         </form>
 
-        <div style={{ marginTop: "24px", textAlign: "center" }}>
-          <Link to="/dashboard">Back to Dashboard</Link>
+        <div
+          style={{
+            marginTop: "24px",
+            textAlign: "center",
+          }}
+        >
+          <Link to="/dashboard">
+            Back to Dashboard
+          </Link>
         </div>
       </div>
     </div>
