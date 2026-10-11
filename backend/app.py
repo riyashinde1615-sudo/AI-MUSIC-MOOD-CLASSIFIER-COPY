@@ -53,18 +53,19 @@ FRONTEND_ORIGINS = [
     "https://ai-music-mood-classifier-one.vercel.app",
 ]
 
+
 CORS(
     app,
     resources={
         r"/*": {
-            "origins": FRONTEND_ORIGINS,
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "origins": [
+                "https://ai-music-mood-classifier-copy.vercel.app",
+                "https://ai-music-mood-classifier-one.vercel.app",
+            ]
         }
     },
-    supports_credentials=False,
-    always_send=True,
 )
+
 
 MAX_UPLOAD_MB = 50
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
