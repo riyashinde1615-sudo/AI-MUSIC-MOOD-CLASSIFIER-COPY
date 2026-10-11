@@ -1,237 +1,214 @@
 
-import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import "./History.css";
 
-const API_URL =
-  "https://ai-music-mood-classifier-copy.onrender.com";
-
-const formatDate = (value) => {
-  if (!value) return "Date unavailable";
-
-  const datePart = String(value).trim().split(/[ T]/)[0];
-  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-  return match
-    ? `${match[1]}-${match[2]}-${match[3]}`
-    : datePart;
-};
+const API_URL = "https://ai-music-mood-classifier-copy.onrender.com";
 
 function History() {
-  const navigate = useNavigate();
-
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [clearing, setClearing] = useState(false);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
       const response = await fetch(`${API_URL}/history`);
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error("Unable to load history");
 
       const data = await response.json();
-
-      const records = Array.isArray(data.predictions)
-        ? data.predictions
-        : Array.isArray(data.history)
-        ? data.history
-        : Array.isArray(data)
-        ? data
-        : null;
-
-      if (!records) {
-        throw new Error("Invalid history response");
-      }
-
-      setHistory(records);
+      setHistory(
+        Array.isArray(data.predictions) ? data.predictions : []
+      );
     } catch (err) {
-      console.error("History API error:", err);
-      setError(`History load failed: ${err.message}`);
+      console.error(err);
+      setError("History load failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [fetchHistory]);
 
-  const deleteRecord = async (item, index) => {
-    const confirmed = window.confirm(
-      "हा record कायमचा delete करायचा आहे का?"
-    );
+  const clearAll = async () => {
+    if (!window.confirm("Delete all prediction history?")) return;
 
-    if (!confirmed) return;
+    try {
+      setClearing(true);
+      const response = await fetch(`${API_URL}/history`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
 
+      if (!response.ok || data.success === false) {
+        throw new Error("Unable to clear history");
+      }
+
+      setHistory([]);
+      alert("All history cleared successfully.");
+    } catch (err) {
+      console.error(err);
+      setError("Could not clear history. Please try again.");
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const deleteRecord = async (item) => {
     if (item.id == null) {
-      alert("या record ची ID उपलब्ध नाही. Delete करता येणार नाही.");
+      alert("Record ID is missing.");
       return;
     }
 
+    if (!window.confirm("Delete this record?")) return;
+
     try {
       const response = await fetch(
-        `${API_URL}/history/${item.id}`,
+        `${API_URL}/history/${encodeURIComponent(item.id)}`,
         { method: "DELETE" }
       );
-
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Delete failed");
+      if (!response.ok || data.success === false) {
+        throw new Error("Delete failed");
       }
 
       setHistory((previous) =>
-        previous.filter((_, i) => i !== index)
+        previous.filter((record) => record.id !== item.id)
       );
     } catch (err) {
-      console.error("Delete history error:", err);
-      alert(`Record delete झाला नाही: ${err.message}`);
+      console.error(err);
+      setError("Could not delete this record.");
     }
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "N/A";
+    const match = String(value).match(/\d{4}-\d{2}-\d{2}/);
+    return match ? match[0] : "N/A";
   };
 
   return (
     <div className="history-page">
-      <div className="history-container">
-
-        <button
-          type="button"
-          className="history-back-button"
-          onClick={() => navigate("/dashboard")}
-        >
+      <main className="history-container">
+        <Link to="/dashboard" className="history-back">
           ← Back to Dashboard
-        </button>
+        </Link>
 
-        <div className="history-heading">
+        <header className="history-header">
+          <div className="history-icon">📜</div>
           <div>
-            <p className="history-eyebrow">
-              ANALYSIS RECORDS
+            <p className="history-eyebrow">MUSIC ANALYTICS</p>
+            <h1>Prediction History</h1>
+            <p className="history-description">
+              View and manage your previously analyzed music
+              and AI mood predictions.
             </p>
-            <h1>Your Predictions</h1>
+          </div>
+        </header>
+
+        <section className="history-toolbar">
+          <div>
+            <h2>Your Predictions</h2>
+            <p>{history.length} Records</p>
           </div>
 
-          <span className="history-count">
-            {history.length} Records
-          </span>
-        </div>
+          <button
+            className="clear-all-button"
+            onClick={clearAll}
+            disabled={clearing || loading || history.length === 0}
+          >
+            {clearing ? "Clearing..." : "🗑️ Clear All"}
+          </button>
+        </section>
 
-        {loading && (
-          <p className="history-message">
-            Loading history...
-          </p>
-        )}
+        {loading && <p className="history-message">Loading history...</p>}
 
-        {!loading && error && (
+        {error && (
           <div className="history-error">
             <p>{error}</p>
-            <button
-              type="button"
-              className="history-refresh"
-              onClick={fetchHistory}
-            >
-              Try Again
-            </button>
+            <button onClick={fetchHistory}>Try Again</button>
           </div>
         )}
 
         {!loading && !error && (
-          <div className="history-table-wrap">
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>SONG NAME</th>
-                  <th>INTENSITY</th>
-                  <th>DATE</th>
-                  <th>ACTION</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {history.length === 0 ? (
+          <section className="history-table-card">
+            <div className="history-table-wrap">
+              <table className="history-table">
+                <thead>
                   <tr>
-                    <td colSpan="4">
-                      No prediction history found.
-                    </td>
+                    <th>SONG NAME</th>
+                    <th>MOOD</th>
+                    <th>INTENSITY</th>
+                    <th>DATE</th>
+                    <th>ACTION</th>
                   </tr>
-                ) : (
-                  history.map((item, index) => {
-                    const songName =
-                      item.song_name ||
-                      item.song ||
-                      item.filename ||
-                      item.file_name ||
-                      item.audio_file ||
-                      "Unknown Song";
+                </thead>
+                <tbody>
+                  {history.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="history-empty">
+                        🎵 No prediction history found.
+                        <br />
+                        <Link to="/upload">Upload Music →</Link>
+                      </td>
+                    </tr>
+                  ) : (
+                    history.map((item, index) => {
+                      const song =
+                        item.song_name ||
+                        item.song ||
+                        item.filename ||
+                        item.file_name ||
+                        "Unknown Song";
 
-                    const intensity =
-                      item.intensity || "Not available";
-
-                    const dateValue =
-                      item.date ||
-                      item.created_at ||
-                      item.timestamp ||
-                      item.datetime;
-
-                    return (
-                      <tr
-                        key={item.id ?? `${songName}-${index}`}
-                      >
-                        <td className="history-song-name">
-                          🎵 {songName}
-                        </td>
-
-                        <td>
-                          <span className="intensity-badge">
-                            {intensity}
-                          </span>
-                        </td>
-
-                        <td>
-                          📅 {formatDate(dateValue)}
-                        </td>
-
-                        <td>
-                          <button
-                            type="button"
-                            className="delete-button"
-                            onClick={() =>
-                              deleteRecord(item, index)
-                            }
-                          >
-                            🗑️ Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                      return (
+                        <tr key={item.id ?? `${song}-${index}`}>
+                          <td className="history-song">🎵 {song}</td>
+                          <td>{item.mood || "N/A"}</td>
+                          <td>
+                            <span className="intensity-badge">
+                              {item.intensity || "N/A"}
+                            </span>
+                          </td>
+                          <td>📅 {formatDate(item.date || item.created_at)}</td>
+                          <td>
+                            <button
+                              className="delete-button"
+                              onClick={() => deleteRecord(item)}
+                            >
+                              🗑️ Delete
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
 
-        {!loading && (
+        <div className="history-bottom">
           <button
-            type="button"
-            className="history-refresh"
+            className="refresh-button"
             onClick={fetchHistory}
+            disabled={loading || clearing}
           >
-            Refresh History
+            ↻ Refresh History
           </button>
-        )}
 
-        <div className="history-bottom-actions">
-          <Link to="/mood-result" className="history-back-link">
-            ← Back to Mood Result
+          <Link to="/dashboard" className="dashboard-button">
+            ← Back to Dashboard
           </Link>
         </div>
-
-      </div>
+      </main>
     </div>
   );
 }
