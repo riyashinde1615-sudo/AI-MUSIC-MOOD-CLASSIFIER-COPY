@@ -5,25 +5,18 @@ import "./History.css";
 const API_URL =
   "https://ai-music-mood-classifier-copy.onrender.com";
 
-const formatDate = (dateString) => {
-  if (!dateString) return "Date unavailable";
+const formatDate = (value) => {
+  if (!value) return "Date unavailable";
 
-  // Handles timestamps such as "2026-10-11 11:22:43"
-  const normalized = dateString.includes("T")
-    ? dateString
-    : dateString.replace(" ", "T");
+  // Backend date is "2026-10-11 11:22:43"
+  // Keep only the date part; do not parse or convert timezone.
+  const datePart = String(value).trim().split(/[ T]/)[0];
 
-  const date = new Date(normalized);
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
-  if (Number.isNaN(date.getTime())) {
-    return dateString.split(" ")[0];
-  }
+  if (!match) return datePart;
 
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit"
-  });
+  return `${match[1]}-${match[2]}-${match[3]}`;
 };
 
 function History() {
@@ -40,24 +33,22 @@ function History() {
         const response = await fetch(`${API_URL}/history`);
 
         if (!response.ok) {
-          throw new Error("Unable to load history.");
+          throw new Error("Unable to load history");
         }
 
         const data = await response.json();
 
         const records = Array.isArray(data)
           ? data
-          : Array.isArray(data.history)
-          ? data.history
           : Array.isArray(data.predictions)
           ? data.predictions
+          : Array.isArray(data.history)
+          ? data.history
           : [];
 
         setHistory(records);
       } catch (err) {
-        setError(
-          "History load होत नाही. कृपया पुन्हा प्रयत्न करा."
-        );
+        setError("History load होत नाही. पुन्हा प्रयत्न करा.");
       } finally {
         setLoading(false);
       }
@@ -76,9 +67,7 @@ function History() {
         </p>
 
         {loading && (
-          <p className="history-message">
-            Loading history...
-          </p>
+          <p className="history-message">Loading history...</p>
         )}
 
         {!loading && error && (
