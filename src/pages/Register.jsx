@@ -12,8 +12,18 @@ function Register() {
   const handleRegister = (e) => {
     e.preventDefault();
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !password ||
+      !confirmPassword
+    ) {
       alert("Please fill all fields");
+      return;
+    }
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters");
       return;
     }
 
@@ -22,19 +32,22 @@ function Register() {
       return;
     }
 
-    alert("Registration Successful");
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (!emailPattern.test(email.trim())) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    // Demo registration only — details are not saved to a backend.
+    alert("Registration Successful");
     navigate("/");
   };
 
   return (
     <div className="login-page">
-
       <div className="login-card">
-
-        <div className="music-logo">
-          🎵
-        </div>
+        <div className="music-logo">🎵</div>
 
         <h1>Create Account</h1>
 
@@ -45,7 +58,6 @@ function Register() {
         </p>
 
         <form onSubmit={handleRegister}>
-
           <label>Full Name</label>
 
           <input
@@ -53,6 +65,8 @@ function Register() {
             placeholder="Enter your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            required
           />
 
           <label>Email</label>
@@ -62,6 +76,8 @@ function Register() {
             placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
           />
 
           <label>Password</label>
@@ -71,6 +87,9 @@ function Register() {
             placeholder="Create password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            required
           />
 
           <label>Confirm Password</label>
@@ -80,24 +99,21 @@ function Register() {
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            required
           />
 
           <button type="submit">
             Create Account
           </button>
-
         </form>
 
         <p className="register-link">
           Already have an account?{" "}
-
-          <Link to="/">
-            Login
-          </Link>
+          <Link to="/">Login</Link>
         </p>
-
       </div>
-
     </div>
   );
 }
