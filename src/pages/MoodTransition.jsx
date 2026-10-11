@@ -3,84 +3,36 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./MoodTransition.css";
 
-const API_URL =
-  "https://ai-music-mood-classifier-copy.onrender.com";
-
 function MoodTransition() {
   const [songName, setSongName] = useState("Uploaded Music");
   const [transitions, setTransitions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("uploadedSongName");
-    if (savedName) setSongName(savedName);
-
     try {
-      const saved = JSON.parse(
+      const savedName = localStorage.getItem("uploadedSongName");
+      const savedData = JSON.parse(
         localStorage.getItem("moodTransitionData") || "null"
       );
 
-      const items = Array.isArray(saved)
-        ? saved
-        : saved?.transitions;
-
-      if (Array.isArray(items)) setTransitions(items);
-    } catch (err) {
-      console.error("Saved transition data error:", err);
-    }
-  }, []);
-
-  const analyzeTransition = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const file = window.__uploadedAudioFile;
-
-      if (!(file instanceof File)) {
-        setError(
-          "Please upload the song again before analyzing mood transition."
-        );
-        return;
+      if (savedName) {
+        setSongName(savedName);
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(
-        `${API_URL}/mood-transition`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.error || "Mood transition analysis failed."
-        );
-      }
-
-      const items = Array.isArray(data.transitions)
-        ? data.transitions
+      const items = Array.isArray(savedData)
+        ? savedData
+        : Array.isArray(savedData?.transitions)
+        ? savedData.transitions
         : [];
 
       setTransitions(items);
-
-      localStorage.setItem(
-        "moodTransitionData",
-        JSON.stringify(data)
-      );
-    } catch (err) {
-      console.error("Mood transition error:", err);
-      setError(err.message || "Unable to analyze mood transition.");
+    } catch (error) {
+      console.error("Unable to load transition data:", error);
+      setTransitions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const formatTime = (seconds) => {
     const total = Math.max(0, Number(seconds) || 0);
@@ -127,53 +79,49 @@ function MoodTransition() {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="timeline-upload-button"
-          onClick={analyzeTransition}
-          disabled={loading}
-        >
-          {loading ? "Analyzing..." : "Analyze Mood Transition"}
-        </button>
-
-        {error && (
-          <p className="transition-error">{error}</p>
-        )}
-
-        {!loading && !error && transitions.length === 0 && (
+        {loading ? (
+          <div className="transition-empty-card">
+            <h3>Loading transition data...</h3>
+          </div>
+        ) : transitions.length === 0 ? (
           <div className="transition-empty-card">
             <div className="empty-icon">🎵</div>
             <h3>No Mood Transition Data Available</h3>
-            <p>Upload a song and run the analysis first.</p>
+            <p>
+              Upload your song and analyze it again to generate
+              mood transition data.
+            </p>
             <Link to="/upload" className="timeline-upload-button">
               Upload Music →
             </Link>
           </div>
-        )}
+        ) : (
+          <div className="transition-list">
+            {transitions.map((item, index) => (
+              <div className="transition-card" key={index}>
+                <div className="transition-time">
+                  ⏱️ {formatTime(item.start)} – {formatTime(item.end)}
+                </div>
 
-        {transitions.map((item, index) => (
-          <div className="transition-card" key={index}>
-            <div className="transition-time">
-              ⏱️ {formatTime(item.start)} – {formatTime(item.end)}
-            </div>
+                <div className="transition-moods">
+                  <span className="mood-badge">
+                    {getEmoji(item.mood)} {item.mood || "Unknown"}
+                  </span>
+                </div>
 
-            <div className="transition-moods">
-              <span className="mood-badge">
-                {getEmoji(item.mood)} {item.mood || "Unknown"}
-              </span>
-            </div>
+                <p className="transition-description">
+                  Mood analysis for this section.
+                </p>
 
-            <p className="transition-description">
-              Mood segment analysis completed.
-            </p>
-
-            {item.confidence != null && (
-              <p className="transition-confidence">
-                🎯 Confidence: <strong>{item.confidence}%</strong>
-              </p>
-            )}
+                {item.confidence != null && (
+                  <p className="transition-confidence">
+                    🎯 Confidence: <strong>{item.confidence}%</strong>
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
