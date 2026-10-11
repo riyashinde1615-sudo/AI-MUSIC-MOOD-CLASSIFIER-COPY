@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
-const API_URL = "https://ai-music-mood-backend.onrender.com";
+const API_URL = "https://ai-music-mood-classifier-copy.onrender.com";
 
 function History() {
   const [history, setHistory] = useState([]);
