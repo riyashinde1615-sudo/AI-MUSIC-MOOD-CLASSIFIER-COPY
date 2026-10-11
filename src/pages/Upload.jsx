@@ -1,46 +1,36 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+
+import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import "./Upload.css";
 
 const API_URL =
   "https://ai-music-mood-classifier-copy.onrender.com";
 
-const ALLOWED_EXTENSIONS = /\.(mp3|wav|ogg|m4a|flac)$/i;
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-
 function Upload() {
   const [file, setFile] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files?.[0];
-
     setError("");
-    setSuccess("");
     setFile(null);
 
     if (!selectedFile) return;
 
-    if (!ALLOWED_EXTENSIONS.test(selectedFile.name)) {
-      setError(
-        "Please select an MP3, WAV, OGG, M4A or FLAC audio file."
-      );
+    const allowed = ["mp3", "wav", "ogg", "m4a", "flac"];
+    const ext = selectedFile.name.split(".").pop().toLowerCase();
+
+    if (!allowed.includes(ext)) {
+      setError("Please upload MP3, WAV, OGG, M4A, or FLAC.");
       event.target.value = "";
       return;
     }
 
-    if (selectedFile.size === 0) {
-      setError("The selected file is empty. Please choose another song.");
-      event.target.value = "";
-      return;
-    }
-
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      setError("File size must be less than or equal to 25 MB.");
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      setError("File size must be less than 25 MB.");
       event.target.value = "";
       return;
     }
@@ -48,197 +38,164 @@ function Upload() {
     setFile(selectedFile);
   };
 
+  const analyzeFile = async (endpoint) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axios.post(
+      `${API_URL}${endpoint}`,
+      formData,
+      { timeout: 180000 }
+    );
+
+    if (response.data?.success === false) {
+      throw new Error("Analysis failed.");
+    }
+
+    return response.data;
+  };
+
   const handleUpload = async (event) => {
     event.preventDefault();
 
     if (!file) {
-      setError("Please select a song first.");
+      setError("Please select a music file first.");
       return;
     }
 
-    setAnalyzing(true);
+    setLoading(true);
     setError("");
-    setSuccess("");
+
+    [
+      "moodData",
+      "multiMoodData",
+      "moodTransitionData",
+      "moodTimelineData",
+    ].forEach((key) => localStorage.removeItem(key));
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // 1. Main mood prediction
+      const result = await analyzeFile("/mood");
 
-      const response = await axios.post(
-        `${API_URL}/mood`,
-        formData,
-        {
-          timeout: 180000,
-        }
+      if (!result?.mood) {
+        throw new Error("Mood prediction was not returned.");
+      }
+
+      localStorage.setItem("moodData", JSON.stringify(result));
+      localStorage.setItem("uploadedSongName", file.name);
+      localStorage.setItem(
+        "uploadedAudioUrl",
+        URL.createObjectURL(file)
       );
 
-      const moodData = response.data;
-
-      if (
-        !moodData ||
-        moodData.success === false ||
-        moodData.error ||
-        !moodData.mood
-      ) {
-        throw new Error(
-          moodData?.error || "Mood prediction failed."
-        );
-      }
-
-      // Save prediction result.
-      localStorage.setItem("moodData", JSON.stringify(moodData));
-      localStorage.setItem("uploadedSongName", file.name);
-
-      // Save a temporary audio URL for playback in this browser session.
-      const previousAudioUrl =
-        localStorage.getItem("uploadedAudioUrl");
-
-      if (previousAudioUrl?.startsWith("blob:")) {
-        try {
-          URL.revokeObjectURL(previousAudioUrl);
-        } catch {
-          // Ignore an invalid or expired object URL.
-        }
-      }
-
-      const audioUrl = URL.createObjectURL(file);
-      localStorage.setItem("uploadedAudioUrl", audioUrl);
-
-      // Save prediction history locally.
-      let history = [];
-
+      // 2. Prediction history
       try {
-        const savedHistory = JSON.parse(
+        const history = JSON.parse(
           localStorage.getItem("predictionHistory") || "[]"
         );
 
-        if (Array.isArray(savedHistory)) {
-          history = savedHistory;
-        }
-      } catch {
-        history = [];
+        history.unshift({
+          filename: file.name,
+          mood: result.mood,
+          confidence: result.confidence,
+          date: new Date().toLocaleString(),
+        });
+
+        localStorage.setItem(
+          "predictionHistory",
+          JSON.stringify(history.slice(0, 20))
+        );
+      } catch (e) {
+        console.warn("History could not be saved:", e);
       }
 
-      const prediction = {
-        song: file.name,
-        mood: moodData.mood,
-        confidence: moodData.confidence ?? 0,
-        intensity: moodData.intensity ?? "Unknown",
-        date: new Date().toISOString(),
-      };
+      // 3. Multi-mood analysis
+      try {
+        const multi = await analyzeFile("/multi-mood");
+        localStorage.setItem("multiMoodData", JSON.stringify(multi));
+      } catch (e) {
+        console.warn("Multi-mood analysis failed:", e);
+      }
 
-      localStorage.setItem(
-        "predictionHistory",
-        JSON.stringify([prediction, ...history].slice(0, 100))
-      );
+      // 4. Mood transition and timeline
+      try {
+        const transition = await analyzeFile("/mood-transition");
 
-      setSuccess("Song analyzed successfully!");
+        localStorage.setItem(
+          "moodTransitionData",
+          JSON.stringify(transition)
+        );
+        localStorage.setItem(
+          "moodTimelineData",
+          JSON.stringify(transition)
+        );
+      } catch (e) {
+        console.warn("Mood transition analysis failed:", e);
+      }
 
       navigate("/mood-result");
-    } catch (err) {
-      console.error("Song analysis error:", err);
+    } catch (e) {
+      console.error("Upload error:", e);
 
-      if (err.response) {
-        setError(
-          err.response.data?.error ||
-            err.response.data?.detail ||
-            `Backend error: ${err.response.status}`
-        );
-      } else if (
-        err.code === "ECONNABORTED" ||
-        err.code === "ETIMEDOUT"
-      ) {
-        setError(
-          "Analysis timed out. Please try again."
-        );
-      } else if (err.request) {
-        setError(
-          "Cannot connect to the backend. Please try again later."
-        );
-      } else {
-        setError(
-          err.message || "Something went wrong. Please try again."
-        );
-      }
+      setError(
+        e.response?.data?.error ||
+        e.response?.data?.message ||
+        e.message ||
+        "Unable to analyze music. Please try again."
+      );
     } finally {
-      setAnalyzing(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="upload-page">
       <div className="upload-container">
-        <h1>🎵 Upload Music</h1>
+        <div className="upload-box">
+          <h2>🎵 Upload Your Music</h2>
 
-        <p>
-          Upload your song and discover its musical mood using AI.
-        </p>
+          <p>
+            Upload an audio file to discover its musical mood.
+          </p>
 
-        <form onSubmit={handleUpload}>
-          <div className="upload-box">
-            <label htmlFor="song-file">
-              <span style={{ fontSize: "42px" }}>🎧</span>
-              <h3>Select Your Song</h3>
-              <p>
-                Supported formats: MP3, WAV, OGG, M4A, FLAC
-              </p>
-            </label>
-
+          <form onSubmit={handleUpload}>
             <input
-              id="song-file"
               className="file-input"
               type="file"
-              accept=".mp3,.wav,.ogg,.m4a,.flac"
+              accept=".mp3,.wav,.ogg,.m4a,.flac,audio/*"
               onChange={handleFileChange}
-              disabled={analyzing}
+              disabled={loading}
             />
 
             {file && (
-              <p className="selected-file">
-                Selected: <strong>{file.name}</strong>
+              <div className="selected-file">
+                <p>🎧 <strong>{file.name}</strong></p>
+                <p>
+                  Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p className="error-message" role="alert">
+                ⚠️ {error}
               </p>
             )}
-          </div>
 
-          {error && (
-            <div
-              className="error-message"
-              role="alert"
-              style={{
-                background: "#fee2e2",
-                padding: "12px",
-                borderRadius: "8px",
-              }}
+            {loading && (
+              <p className="loading-message" role="status">
+                🎶 Analyzing your music... Please wait.
+              </p>
+            )}
+
+            <button
+              className="upload-button"
+              type="submit"
+              disabled={loading || !file}
             >
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <p className="loading-message" role="status">
-              {success}
-            </p>
-          )}
-
-          <button
-            className="upload-button"
-            type="submit"
-            disabled={!file || analyzing}
-          >
-            {analyzing
-              ? "Analyzing Song..."
-              : "Analyze Song 🎶"}
-          </button>
-
-          {analyzing && (
-            <p className="loading-message" role="status">
-              Please wait while AI analyzes your song.
-            </p>
-          )}
-        </form>
-
-        <div style={{ marginTop: "24px", textAlign: "center" }}>
-          <Link to="/dashboard">Back to Dashboard</Link>
+              {loading ? "Analyzing..." : "✨ Analyze Song"}
+            </button>
+          </form>
         </div>
       </div>
     </div>
