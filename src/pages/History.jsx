@@ -8,8 +8,8 @@ const API_URL =
 const formatDate = (value) => {
   if (!value) return "Date unavailable";
 
-  // Backend date is "2026-10-11 11:22:43"
-  // Keep only the date part; do not parse or convert timezone.
+  // API example: "2026-10-11 11:22:43"
+  // Extract only the date, without converting timezones.
   const datePart = String(value).trim().split(/[ T]/)[0];
 
   const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -25,36 +25,49 @@ function History() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchHistory = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`${API_URL}/history`);
+        const response = await fetch(`${API_URL}/history`, {
+          signal: controller.signal
+        });
 
         if (!response.ok) {
-          throw new Error("Unable to load history");
+          throw new Error(`Server error: ${response.status}`);
         }
 
         const data = await response.json();
 
-        const records = Array.isArray(data)
-          ? data
-          : Array.isArray(data.predictions)
-          ? data.predictions
-          : Array.isArray(data.history)
-          ? data.history
-          : [];
-
-        setHistory(records);
+        if (Array.isArray(data.predictions)) {
+          setHistory(data.predictions);
+        } else if (Array.isArray(data.history)) {
+          setHistory(data.history);
+        } else if (Array.isArray(data)) {
+          setHistory(data);
+        } else {
+          throw new Error("Unexpected history response format.");
+        }
       } catch (err) {
-        setError("History load होत नाही. पुन्हा प्रयत्न करा.");
+        if (err.name !== "AbortError") {
+          console.error("History error:", err);
+          setError(
+            "History load होत नाही. Refresh करून पुन्हा प्रयत्न करा."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchHistory();
+
+    return () => controller.abort();
   }, []);
 
   return (
@@ -67,11 +80,21 @@ function History() {
         </p>
 
         {loading && (
-          <p className="history-message">Loading history...</p>
+          <p className="history-message">
+            Loading history...
+          </p>
         )}
 
         {!loading && error && (
-          <p className="history-error">{error}</p>
+          <div className="history-error">
+            <p>{error}</p>
+            <button
+              className="history-refresh"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
         )}
 
         {!loading && !error && history.length === 0 && (
@@ -133,12 +156,14 @@ function History() {
           </div>
         )}
 
-        <button
-          className="history-refresh"
-          onClick={() => window.location.reload()}
-        >
-          Refresh History
-        </button>
+        {!loading && (
+          <button
+            className="history-refresh"
+            onClick={() => window.location.reload()}
+          >
+            Refresh History
+          </button>
+        )}
       </div>
     </div>
   );
