@@ -43,15 +43,13 @@ function History() {
         : null;
 
       if (!records) {
-        throw new Error("Unexpected API response format");
+        throw new Error("Invalid history response");
       }
 
       setHistory(records);
     } catch (err) {
       console.error("History API error:", err);
-      setError(
-        `History error: ${err.message || "Network error"}`
-      );
+      setError(`History load failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -61,12 +59,10 @@ function History() {
     fetchHistory();
   }, []);
 
-  const deleteRecord = (index) => {
-    const confirmed = window.confirm(
-      "हा record फक्त या स्क्रीनवरून काढायचा आहे का?"
-    );
-
-    if (confirmed) {
+  // This removes the record from the current screen only.
+  // Permanent deletion needs a backend DELETE endpoint.
+  const removeFromScreen = (index) => {
+    if (window.confirm("हा record स्क्रीनवरून काढायचा आहे का?")) {
       setHistory((previous) =>
         previous.filter((_, i) => i !== index)
       );
@@ -78,9 +74,7 @@ function History() {
       <div className="history-container">
         <div className="history-heading">
           <div>
-            <p className="history-eyebrow">
-              ANALYSIS RECORDS
-            </p>
+            <p className="history-eyebrow">ANALYSIS RECORDS</p>
             <h1>Your Predictions</h1>
           </div>
 
@@ -90,9 +84,7 @@ function History() {
         </div>
 
         {loading && (
-          <p className="history-message">
-            Loading history...
-          </p>
+          <p className="history-message">Loading history...</p>
         )}
 
         {!loading && error && (
@@ -112,6 +104,7 @@ function History() {
             <table className="history-table">
               <thead>
                 <tr>
+                  <th>SONG NAME</th>
                   <th>INTENSITY</th>
                   <th>DATE</th>
                   <th>ACTION</th>
@@ -121,12 +114,23 @@ function History() {
               <tbody>
                 {history.length === 0 ? (
                   <tr>
-                    <td colSpan="3">
+                    <td colSpan="4">
                       No prediction history found.
                     </td>
                   </tr>
                 ) : (
                   history.map((item, index) => {
+                    const songName =
+                      item.song_name ||
+                      item.song ||
+                      item.filename ||
+                      item.file_name ||
+                      item.audio_file ||
+                      "Unknown Song";
+
+                    const intensity =
+                      item.intensity || "Not available";
+
                     const dateValue =
                       item.date ||
                       item.created_at ||
@@ -135,14 +139,15 @@ function History() {
 
                     return (
                       <tr
-                        key={
-                          item.id ??
-                          `${item.song || "song"}-${index}`
-                        }
+                        key={item.id ?? `${songName}-${index}`}
                       >
+                        <td className="history-song-name">
+                          🎵 {songName}
+                        </td>
+
                         <td>
                           <span className="intensity-badge">
-                            {item.intensity || "Low"}
+                            {intensity}
                           </span>
                         </td>
 
@@ -153,7 +158,7 @@ function History() {
                         <td>
                           <button
                             className="delete-button"
-                            onClick={() => deleteRecord(index)}
+                            onClick={() => removeFromScreen(index)}
                           >
                             🗑️ Delete
                           </button>
