@@ -4,34 +4,32 @@ import { Link } from "react-router-dom";
 function MoodTransition() {
   const [songName, setSongName] = useState("Uploaded Music");
   const [transitionData, setTransitionData] = useState(null);
+  const [moodData, setMoodData] = useState(null);
 
   useEffect(() => {
-    const savedSongName =
-      localStorage.getItem("uploadedSongName");
-    const savedTransitionData =
-      localStorage.getItem("moodTransitionData");
-    const savedMoodData =
-      localStorage.getItem("moodData");
+    try {
+      const savedSongName =
+        localStorage.getItem("uploadedSongName");
 
-    if (savedSongName) setSongName(savedSongName);
+      const savedTransitionData =
+        localStorage.getItem("moodTransitionData");
 
-    if (savedTransitionData) {
-      try {
+      const savedMoodData =
+        localStorage.getItem("moodData");
+
+      if (savedSongName) {
+        setSongName(savedSongName);
+      }
+
+      if (savedTransitionData) {
         setTransitionData(JSON.parse(savedTransitionData));
-      } catch (error) {
-        console.error("Error reading transition data:", error);
       }
-    } else if (savedMoodData) {
-      try {
-        const moodData = JSON.parse(savedMoodData);
-        setTransitionData({
-          success: true,
-          transitions: [],
-          confidence: moodData.confidence || 0,
-        });
-      } catch (error) {
-        console.error("Error reading mood data:", error);
+
+      if (savedMoodData) {
+        setMoodData(JSON.parse(savedMoodData));
       }
+    } catch (error) {
+      console.error("Error reading saved mood data:", error);
     }
   }, []);
 
@@ -40,7 +38,7 @@ function MoodTransition() {
 
     if (value.includes("happy")) return "😊";
     if (value.includes("sad")) return "😢";
-    if (value.includes("relaxed") || value.includes("calm")) return "😌";
+    if (value.includes("calm") || value.includes("relax")) return "😌";
     if (value.includes("energetic")) return "⚡";
     if (value.includes("aggressive")) return "🔥";
     if (value.includes("romantic")) return "❤️";
@@ -49,10 +47,14 @@ function MoodTransition() {
     return "🎵";
   };
 
-  const formatTime = (seconds) => {
-    const total = Math.max(0, Number(seconds) || 0);
-    const minutes = Math.floor(total / 60);
-    const remaining = Math.floor(total % 60);
+  const formatTime = (value) => {
+    if (typeof value === "string" && value.includes(":")) {
+      return value;
+    }
+
+    const seconds = Math.max(0, Number(value) || 0);
+    const minutes = Math.floor(seconds / 60);
+    const remaining = Math.floor(seconds % 60);
 
     return `${String(minutes).padStart(2, "0")}:${String(
       remaining
@@ -61,47 +63,95 @@ function MoodTransition() {
 
   const getTransitionTime = (item) => {
     const start =
-      item?.start ??
       item?.start_time ??
       item?.startTime ??
+      item?.start ??
       item?.from_time ??
       item?.section_start ??
+      item?.timestamp ??
       0;
 
     const end =
-      item?.end ??
       item?.end_time ??
       item?.endTime ??
+      item?.end ??
       item?.to_time ??
       item?.section_end;
 
-    return end !== undefined && end !== null
-      ? `${formatTime(start)} – ${formatTime(end)}`
-      : `${formatTime(start)} – ${formatTime(Number(start) + 10)}`;
+    if (end !== undefined && end !== null) {
+      return `${formatTime(start)} – ${formatTime(end)}`;
+    }
+
+    return formatTime(start);
   };
 
-  const getMood = (item) =>
-    item?.mood ||
-    item?.current_mood ||
-    item?.currentMood ||
+  const getCurrentMood = (item) =>
+    item?.from_mood ??
+    item?.previous_mood ??
+    item?.previousMood ??
+    item?.current_mood ??
+    item?.currentMood ??
+    item?.mood ??
+    item?.predicted_mood ??
+    item?.predictedMood ??
+    item?.dominant_mood ??
+    item?.dominantMood ??
     "Unknown";
 
-  const transitions = Array.isArray(transitionData?.transitions)
-    ? transitionData.transitions
-    : [];
+  const getNextMood = (item) =>
+    item?.to_mood ??
+    item?.next_mood ??
+    item?.nextMood ??
+    item?.new_mood ??
+    item?.newMood ??
+    item?.following_mood ??
+    item?.followingMood ??
+    null;
 
-  let confidence = transitionData?.confidence;
+  const findTransitions = (data) => {
+    if (!data || typeof data !== "object") return [];
 
-  if (confidence == null) {
-    try {
-      const moodData = JSON.parse(
-        localStorage.getItem("moodData") || "{}"
-      );
-      confidence = moodData?.confidence || 0;
-    } catch {
-      confidence = 0;
+    if (Array.isArray(data)) return data;
+
+    const possibleKeys = [
+      "transitions",
+      "mood_transitions",
+      "moodTransitions",
+      "timeline",
+      "sections",
+      "segments",
+      "results",
+      "data",
+    ];
+
+    for (const key of possibleKeys) {
+      if (Array.isArray(data[key])) {
+        return data[key];
+      }
     }
-  }
+
+    return [];
+  };
+
+  const transitions = findTransitions(transitionData);
+
+  const confidenceValue =
+    transitionData?.confidence ??
+    transitionData?.overall_confidence ??
+    transitionData?.overallConfidence ??
+    moodData?.confidence ??
+    moodData?.confidence_score ??
+    moodData?.confidenceScore ??
+    null;
+
+  const confidence = (() => {
+    if (confidenceValue == null) return null;
+
+    const value = Number(confidenceValue);
+    if (!Number.isFinite(value)) return null;
+
+    return value > 0 && value <= 1 ? value * 100 : value;
+  })();
 
   return (
     <div className="mood-transition-page">
@@ -131,10 +181,11 @@ function MoodTransition() {
         {transitions.length === 0 ? (
           <div className="transition-empty-card">
             <div className="empty-icon">🎵</div>
-            <h3>No Major Mood Transition Detected</h3>
+            <h3>No Mood Transition Data Available</h3>
             <p>
-              No transition records are available. Please analyze a song
-              to generate mood transition data.
+              Transition data was not found for this song.
+              Analyze the song again if needed, or check whether
+              the backend provides mood transition results.
             </p>
             <Link to="/upload" className="timeline-upload-button">
               Upload Music →
@@ -143,19 +194,25 @@ function MoodTransition() {
         ) : (
           <div className="transition-list">
             {transitions.map((item, index) => {
-              const currentMood = getMood(item);
-              const nextMood = transitions[index + 1]
-                ? getMood(transitions[index + 1])
-                : currentMood;
+              const currentMood = getCurrentMood(item);
+              const nextMood = getNextMood(item);
 
-              const itemConfidence =
-                item?.confidence != null
-                  ? Number(item.confidence)
-                  : Number(confidence) || 0;
+              const itemConfidenceValue =
+                item?.confidence ??
+                item?.transition_confidence ??
+                item?.transitionConfidence ??
+                null;
 
-              const hasMoodChange =
-                index < transitions.length - 1 &&
-                currentMood.toLowerCase() !== nextMood.toLowerCase();
+              const itemConfidence = (() => {
+                if (itemConfidenceValue == null) return null;
+
+                const value = Number(itemConfidenceValue);
+                if (!Number.isFinite(value)) return null;
+
+                return value > 0 && value <= 1
+                  ? value * 100
+                  : value;
+              })();
 
               return (
                 <div className="transition-card" key={index}>
@@ -168,33 +225,44 @@ function MoodTransition() {
                       {getMoodEmoji(currentMood)} {currentMood}
                     </span>
 
-                    <span className="transition-arrow">→</span>
-
-                    <span className="mood-badge">
-                      {getMoodEmoji(nextMood)} {nextMood}
-                    </span>
+                    {nextMood && (
+                      <>
+                        <span className="transition-arrow">→</span>
+                        <span className="mood-badge">
+                          {getMoodEmoji(nextMood)} {nextMood}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   <p className="transition-description">
-                    {hasMoodChange
-                      ? "💡 Emotional mood changed between these analyzed sections."
-                      : "💡 Emotional features were analyzed during this section."}
+                    {nextMood &&
+                    String(currentMood).toLowerCase() !==
+                      String(nextMood).toLowerCase()
+                      ? "💡 A mood change is recorded for this section."
+                      : "💡 Mood information is available for this section."}
                   </p>
 
-                  <div className="transition-confidence">
-                    🎯 Transition Confidence:{" "}
-                    <strong>{itemConfidence.toFixed(0)}%</strong>
-                  </div>
+                  {itemConfidence !== null && (
+                    <div className="transition-confidence">
+                      🎯 Transition Confidence:{" "}
+                      <strong>
+                        {itemConfidence.toFixed(0)}%
+                      </strong>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        <div className="overall-transition-confidence">
-          <span>🎯 Overall Analysis Confidence</span>
-          <strong>{Number(confidence || 0).toFixed(0)}%</strong>
-        </div>
+        {confidence !== null && (
+          <div className="overall-transition-confidence">
+            <span>🎯 Overall Analysis Confidence</span>
+            <strong>{confidence.toFixed(0)}%</strong>
+          </div>
+        )}
       </div>
     </div>
   );
