@@ -1,11 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
 const API_URL = (
   import.meta.env.VITE_API_URL ||
-  "https://ai-music-mood-backend.onrender.com"
+  "https://ai-music-mood-classifier-copy.onrender.com"
 ).replace(/\/+$/, "");
 
 function Feedback() {
@@ -31,12 +30,21 @@ function Feedback() {
       try {
         const data = JSON.parse(savedMoodData);
 
-        if (data.mood) {
-          setMood(data.mood);
+        const savedMood =
+          data.mood ??
+          data.predicted_mood ??
+          data.predictedMood ??
+          data.dominant_mood ??
+          data.emotion;
+
+        if (savedMood) {
+          setMood(String(savedMood));
         }
 
         if (data.confidence !== undefined) {
           setConfidence(Number(data.confidence) || 0);
+        } else if (data.confidence_score !== undefined) {
+          setConfidence(Number(data.confidence_score) || 0);
         }
       } catch (error) {
         console.error("Feedback data error:", error);
@@ -49,11 +57,17 @@ function Feedback() {
 
     if (currentMood.includes("happy")) return "😊";
     if (currentMood.includes("sad")) return "😢";
-    if (currentMood.includes("relaxed")) return "😌";
+    if (
+      currentMood.includes("relaxed") ||
+      currentMood.includes("calm")
+    ) {
+      return "😌";
+    }
     if (currentMood.includes("energetic")) return "⚡";
     if (currentMood.includes("aggressive")) return "🔥";
     if (currentMood.includes("romantic")) return "❤️";
     if (currentMood.includes("dramatic")) return "🎭";
+    if (currentMood.includes("neutral")) return "😐";
 
     return "🎵";
   };
@@ -102,7 +116,7 @@ function Feedback() {
       } else {
         alert(
           response.data?.message ||
-          "Feedback could not be saved. Please try again."
+            "Feedback could not be saved. Please try again."
         );
       }
     } catch (error) {
@@ -113,8 +127,8 @@ function Feedback() {
 
       alert(
         error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Feedback could not be saved. Please check the backend and try again."
+          error.response?.data?.message ||
+          "Feedback could not be saved. Please check the backend and try again."
       );
     } finally {
       setLoading(false);
@@ -215,9 +229,11 @@ function Feedback() {
 
           <div className="feedback-prediction">
             <span>AI PREDICTION</span>
+
             <strong>
               {getMoodIcon()} {mood}
             </strong>
+
             <strong>🎯 {confidence.toFixed(0)}%</strong>
           </div>
         </section>
@@ -252,7 +268,9 @@ function Feedback() {
               >
                 <span className="feedback-option-icon">😊</span>
                 <strong>Yes, accurate</strong>
-                <small>The prediction matches my opinion</small>
+                <small>
+                  The prediction matches my opinion
+                </small>
               </button>
 
               <button
@@ -267,7 +285,9 @@ function Feedback() {
               >
                 <span className="feedback-option-icon">😐</span>
                 <strong>Partially accurate</strong>
-                <small>The prediction is somewhat correct</small>
+                <small>
+                  The prediction is somewhat correct
+                </small>
               </button>
 
               <button
@@ -282,7 +302,9 @@ function Feedback() {
               >
                 <span className="feedback-option-icon">😕</span>
                 <strong>Not accurate</strong>
-                <small>The prediction is incorrect</small>
+                <small>
+                  The prediction is incorrect
+                </small>
               </button>
             </div>
           </div>
@@ -349,7 +371,6 @@ function Feedback() {
               maxLength={5000}
               disabled={loading}
             />
-
           </div>
 
           {/* SUBMIT */}
@@ -359,7 +380,9 @@ function Feedback() {
               className="feedback-submit-button"
               disabled={loading}
             >
-              {loading ? "Saving Feedback..." : "⭐ Submit Feedback"}
+              {loading
+                ? "Saving Feedback..."
+                : "⭐ Submit Feedback"}
             </button>
           </div>
         </form>
