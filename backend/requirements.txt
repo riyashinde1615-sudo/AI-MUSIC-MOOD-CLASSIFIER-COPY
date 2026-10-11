@@ -18,3 +18,5 @@ langchain-text-splitters
 resampy
 
 psycopg2-binary==2.9.13
+pydub
+imageio-ffmpeg
