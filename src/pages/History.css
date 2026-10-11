@@ -1,0 +1,85 @@
+
+.history-page {
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: #f5f6fb;
+  color: #20243a;
+  font-family: Arial, sans-serif;
+}
+
+.history-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+}
+
+.history-container h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.history-subtitle {
+  margin-bottom: 24px;
+  color: #74798b;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.history-card {
+  padding: 18px;
+  border: 1px solid #e6e8f0;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.history-card h3 {
+  margin: 0 0 10px;
+}
+
+.history-mood,
+.history-date,
+.history-confidence,
+.history-intensity {
+  margin: 8px 0;
+}
+
+.history-message {
+  padding: 16px;
+  text-align: center;
+}
+
+.history-error {
+  color: #c62828;
+}
+
+.history-refresh {
+  margin-top: 20px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: #536de8;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.history-refresh:hover {
+  background: #4058ce;
+}
+
+@media (max-width: 600px) {
+  .history-container {
+    padding: 16px;
+  }
+
+  .history-container h1 {
+    font-size: 23px;
+  }
+}
