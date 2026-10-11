@@ -1,62 +1,341 @@
 
+/* ========================================
+   HISTORY PAGE
+======================================== */
+
+.history-page {
+  min-height: 100vh;
+  width: 100%;
+  padding: 35px 20px;
+  box-sizing: border-box;
+  background: #f5f6ff;
+  color: #252943;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.history-container {
+  width: 100%;
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+/* ========================================
+   BACK TO DASHBOARD BUTTON
+======================================== */
+
+.history-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 5px 14px rgba(102, 126, 234, 0.2);
+}
+
+.history-back-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(102, 126, 234, 0.3);
+}
+
+/* ========================================
+   HEADER
+======================================== */
+
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 28px 30px;
+  margin-bottom: 28px;
+  border-radius: 20px;
+  background: linear-gradient(115deg, #4776e6, #764ba2);
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(82, 89, 180, 0.18);
+}
+
+.history-eyebrow {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.history-heading h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #ffffff;
+}
+
+.history-count {
+  display: inline-block;
+  padding: 9px 14px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ========================================
+   TABLE WRAPPER
+======================================== */
+
 .history-table-wrap {
   width: 100%;
   overflow-x: auto;
+  border: 1px solid #e7e8f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(37, 41, 67, 0.05);
 }
+
+/* ========================================
+   HISTORY TABLE
+======================================== */
 
 .history-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   text-align: left;
 }
 
+.history-table thead {
+  background: #f8f8ff;
+}
+
 .history-table th {
-  padding: 18px 14px;
-  background: #fafaff;
-  color: #777b8c;
+  padding: 19px 20px;
+  border-bottom: 1px solid #e8e9f2;
+  color: #777e9c;
   font-size: 12px;
+  font-weight: 800;
   letter-spacing: 1px;
   white-space: nowrap;
 }
 
 .history-table td {
-  padding: 20px 14px;
-  border-top: 1px solid #e8e9f0;
+  padding: 22px 20px;
+  border-bottom: 1px solid #eeeeF5;
+  color: #424760;
+  font-size: 14px;
   vertical-align: middle;
 }
 
+.history-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.history-table tbody tr:hover {
+  background: #fafaff;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .history-song-name {
-  min-width: 150px;
-  max-width: 260px;
+  max-width: 300px;
   overflow-wrap: anywhere;
   font-weight: 600;
+  color: #303550;
 }
+
+/* ========================================
+   INTENSITY BADGE
+======================================== */
 
 .intensity-badge {
   display: inline-block;
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: #e8f6ed;
-  color: #43825b;
+  padding: 7px 13px;
+  border-radius: 20px;
+  background: #e7f8e9;
+  color: #31834a;
+  font-size: 12px;
   font-weight: 700;
+  text-transform: capitalize;
   white-space: nowrap;
 }
+
+/* ========================================
+   DELETE BUTTON
+======================================== */
 
 .delete-button {
-  padding: 10px 12px;
-  border: 1px solid #efd5da;
-  border-radius: 9px;
-  background: #fffafb;
-  color: #b45e6d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 13px;
+  border: 1px solid #f1dada;
+  border-radius: 8px;
+  background: #fff4f4;
+  color: #d64545;
+  font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-@media (max-width: 600px) {
-  .history-table th,
-  .history-table td {
-    padding: 14px 10px;
+.delete-button:hover {
+  background: #d64545;
+  color: #ffffff;
+}
+
+/* ========================================
+   LOADING AND ERROR MESSAGES
+======================================== */
+
+.history-message {
+  padding: 24px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #667085;
+  text-align: center;
+  font-size: 16px;
+}
+
+.history-error {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #ffd4d4;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #bd3535;
+  overflow-wrap: anywhere;
+}
+
+.history-error p {
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+
+/* ========================================
+   REFRESH BUTTON
+======================================== */
+
+.history-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 22px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.history-refresh:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* ========================================
+   BACK TO MOOD RESULT
+======================================== */
+
+.history-bottom-actions {
+  margin-top: 28px;
+  text-align: center;
+}
+
+.history-back-link {
+  display: inline-block;
+  padding: 10px 4px;
+  color: #667eea;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.history-back-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE DESIGN
+======================================== */
+
+@media (max-width: 768px) {
+  .history-page {
+    padding: 20px 12px;
+  }
+
+  .history-heading {
+    padding: 22px 18px;
+    margin-bottom: 20px;
+    border-radius: 16px;
+  }
+
+  .history-heading h1 {
+    font-size: 27px;
+  }
+
+  .history-eyebrow {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+  }
+
+  .history-count {
     font-size: 12px;
+    padding: 7px 11px;
+  }
+
+  .history-table th {
+    padding: 15px 12px;
+    font-size: 11px;
+  }
+
+  .history-table td {
+    padding: 17px 12px;
+    font-size: 13px;
+  }
+
+  .history-back-button {
+    width: 100%;
+    margin-bottom: 18px;
+  }
+
+  .history-refresh {
+    width: 100%;
+  }
+
+  .history-song-name {
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 400px) {
+  .history-heading h1 {
+    font-size: 23px;
+  }
+
+  .history-heading {
+    padding: 18px 14px;
+  }
+
+  .history-table {
+    min-width: 620px;
   }
 }
