@@ -1,56 +1,78 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./MoodTransition.css";
 
 function MoodTransition() {
-  const [songName, setSongName] = useState("Uploaded Music");
+  const [songName, setSongName] = useState("Uploaded Song");
   const [transitions, setTransitions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     try {
-      const savedName = localStorage.getItem("uploadedSongName");
-      const savedData = JSON.parse(
+      setSongName(
+        localStorage.getItem("uploadedSongName") ||
+        localStorage.getItem("songName") ||
+        "Uploaded Song"
+      );
+
+      const data = JSON.parse(
         localStorage.getItem("moodTransitionData") || "null"
       );
 
-      if (savedName) {
-        setSongName(savedName);
+      const items = Array.isArray(data)
+        ? data
+        : data?.transitions || [];
+
+      const changes = [];
+
+      for (let i = 1; i < items.length; i++) {
+        const from = items[i - 1].mood;
+        const to = items[i].mood;
+
+        if (
+          from &&
+          to &&
+          from.toLowerCase() !== to.toLowerCase()
+        ) {
+          changes.push({ from, to });
+        }
       }
 
-      const items = Array.isArray(savedData)
-        ? savedData
-        : Array.isArray(savedData?.transitions)
-        ? savedData.transitions
+      const backendChanges = Array.isArray(data?.mood_changes)
+        ? data.mood_changes
+            .filter(
+              (item) =>
+                item.from &&
+                item.to &&
+                item.from.toLowerCase() !==
+                  item.to.toLowerCase()
+            )
+            .map((item) => ({
+              from: item.from,
+              to: item.to,
+            }))
         : [];
 
-      setTransitions(items);
+      setTransitions(
+        backendChanges.length ? backendChanges : changes
+      );
     } catch (error) {
-      console.error("Unable to load transition data:", error);
+      console.error("Transition error:", error);
       setTransitions([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const formatTime = (seconds) => {
-    const total = Math.max(0, Number(seconds) || 0);
-    const minutes = Math.floor(total / 60);
-    const remaining = Math.floor(total % 60);
-
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remaining
-    ).padStart(2, "0")}`;
-  };
-
   const getEmoji = (mood) => {
     const value = String(mood || "").toLowerCase();
 
     if (value.includes("happy")) return "😊";
     if (value.includes("sad")) return "😢";
-    if (value.includes("relax") || value.includes("calm")) return "😌";
+    if (value.includes("calm") || value.includes("relaxed"))
+      return "😌";
     if (value.includes("energetic")) return "⚡";
+    if (value.includes("romantic")) return "❤️";
     if (value.includes("aggressive")) return "🔥";
 
     return "🎵";
@@ -63,11 +85,11 @@ function MoodTransition() {
           ← Back to Mood Result
         </Link>
 
-        <div className="mood-transition-header">
+        <header className="mood-transition-header">
           <div className="mood-transition-icon">🔄</div>
           <h1>Mood Transition</h1>
-          <p>Detect how the emotional mood changes throughout the song.</p>
-        </div>
+          <p>See how the mood changes throughout your song.</p>
+        </header>
 
         <div className="transition-song-card">
           <div className="transition-song-icon">🎵</div>
@@ -81,46 +103,54 @@ function MoodTransition() {
 
         {loading ? (
           <div className="transition-empty-card">
-            <h3>Loading transition data...</h3>
-          </div>
-        ) : transitions.length === 0 ? (
-          <div className="transition-empty-card">
-            <div className="empty-icon">🎵</div>
-            <h3>No Mood Transition Data Available</h3>
-            <p>
-              Upload your song and analyze it again to generate
-              mood transition data.
-            </p>
-            <Link to="/upload" className="timeline-upload-button">
-              Upload Music →
-            </Link>
+            Loading mood changes...
           </div>
         ) : (
-          <div className="transition-list">
-            {transitions.map((item, index) => (
-              <div className="transition-card" key={index}>
-                <div className="transition-time">
-                  ⏱️ {formatTime(item.start)} – {formatTime(item.end)}
-                </div>
+          <>
+            <div className="transition-empty-card">
+              <h2>Total Mood Changes</h2>
+              <h1>{transitions.length}</h1>
+            </div>
 
-                <div className="transition-moods">
-                  <span className="mood-badge">
-                    {getEmoji(item.mood)} {item.mood || "Unknown"}
-                  </span>
-                </div>
+            {transitions.length > 0 ? (
+              <div className="transition-list">
+                {transitions.map((item, index) => (
+                  <div className="transition-card" key={index}>
+                    <h3>Mood Change {index + 1}</h3>
 
-                <p className="transition-description">
-                  Mood analysis for this section.
-                </p>
+                    <div className="transition-moods">
+                      <span className="mood-badge">
+                        {getEmoji(item.from)} {item.from}
+                      </span>
 
-                {item.confidence != null && (
-                  <p className="transition-confidence">
-                    🎯 Confidence: <strong>{item.confidence}%</strong>
-                  </p>
-                )}
+                      <span> → </span>
+
+                      <span className="mood-badge">
+                        {getEmoji(item.to)} {item.to}
+                      </span>
+                    </div>
+
+                    <p className="transition-description">
+                      Mood changed from {item.from} to {item.to}.
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="transition-empty-card">
+                <h3>No Mood Changes Detected</h3>
+                <p>
+                  Upload and analyze a song to see its mood changes.
+                </p>
+                <Link
+                  to="/upload"
+                  className="timeline-upload-button"
+                >
+                  Upload Music →
+                </Link>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
