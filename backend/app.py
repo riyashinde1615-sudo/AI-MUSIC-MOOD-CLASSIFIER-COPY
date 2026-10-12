@@ -144,11 +144,18 @@ def save_uploaded_file(file):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
             converted_path = temp_file.name
 
+        # Prefer a system FFmpeg binary. Fall back to imageio-ffmpeg,
+        # which bundles a usable FFmpeg executable when installed.
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
-            raise RuntimeError(
-                "FFmpeg is not installed or unavailable on the server."
-            )
+            try:
+                import imageio_ffmpeg
+                ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+            except (ImportError, OSError) as exc:
+                raise RuntimeError(
+                    "FFmpeg is unavailable. Add imageio-ffmpeg to requirements.txt "
+                    "and redeploy, or install FFmpeg on the server."
+                ) from exc
 
         command = [
             ffmpeg_path,
@@ -189,16 +196,15 @@ def save_uploaded_file(file):
 
     except subprocess.TimeoutExpired:
         raise ValueError("Audio conversion took too long. Try a shorter file.")
-    finally:
-        # If conversion failed, do not leave a broken temporary WAV behind.
-        if converted_path and (
-            not os.path.isfile(converted_path)
-            or os.path.getsize(converted_path) == 0
-        ):
+    except Exception:
+        # Clean up the temporary WAV on every failed conversion.
+        if converted_path:
             try:
-                os.remove(converted_path)
+                if os.path.exists(converted_path):
+                    os.remove(converted_path)
             except OSError:
                 pass
+        raise
 
 
 def remove_temporary_audio(file_path):
