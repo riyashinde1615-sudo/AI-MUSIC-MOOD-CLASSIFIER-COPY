@@ -106,7 +106,11 @@ def allowed_file(filename):
 
 
 def save_uploaded_file(file):
-    """ Save the original upload and convert its audio to a temporary WAV. Returns (safe_original_filename, converted_wav_path). The caller must remove converted_wav_path after analysis. """
+    """
+    Save the original upload and convert its audio to a temporary WAV.
+    Returns (safe_original_filename, converted_wav_path).
+    The caller must remove converted_wav_path after analysis.
+    """
     if file is None or not file.filename:
         raise ValueError("No audio or video file selected.")
 
