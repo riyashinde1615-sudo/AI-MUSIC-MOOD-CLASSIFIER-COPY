@@ -663,7 +663,6 @@ def submit_feedback():
             "Could not save feedback. Please try again.", 500
         )
 
-
 # ==================================================
 # HISTORY
 # ==================================================
